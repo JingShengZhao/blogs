@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8'>
+<style type="text/css">
+
+div#header {background-color:#99bbbb;}
+div#menu1 {background-color:#ffff99;height:400px;width:100px; float:left;}
+div#content1 {background-color:#EEEEEE;float:left;}
+div#menu2 {background-color:#ffff99;height:400px;width:200px; float:right;}
+div#footer {background-color:#99bbbb; clear:both; text-align:center;}
+h1 {margin-bottom:0;}
+h2 {margin-bottom:0; font-size:14px;}
+ul {margin:0;}
+li {list-style:none;}
+</style>
+    <script type="text/javascript"
+    src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+    </script>
+    <script>
+        MathJax.Hub.Config({
+              tex2jax: {
+              skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+              }
+        });
+        MathJax.Hub.Queue(function() {
+            var all = MathJax.Hub.getAllJax(), i;
+            for(i=0; i < all.length; i += 1) {
+                all[i].SourceElement().parentNode.className += ' has-jax';
+            }
+        });
+    </script>
+     {% include google_analytics.ext %}
+    <title>{{ page.title }}</title>
+</head>
+
+<body>
+  <div id="header">
+    <h1>
+	<a href="/" title="Home Page"> 潇湘夜雨 </a>
+	<span class="github-src">
+	  <a href ="https://github.com/JingShengZhao/blogs"
+	    target="_blank"
+	    title="Fork me on GitHub">
+	  </a>
+	</span>
+    </h1>
+  </div>
+
+<div id="menu1">
+    {% include categories.ext %}
+</div>
+
+<div id="menu2">
+    {% include archives.ext %}
+</div>
+
+<article>
+<div id="content1">
+  {{ content }}
+  
+
+</div>
+</article>
+
+
+
+<div id="footer">
+    Copyright (c) JingShengZhao 2014
+</div>
+
+ </body>
+</html>
