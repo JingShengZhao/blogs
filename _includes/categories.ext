@@ -6,7 +6,7 @@
                 <a href="{{ site.baseurl }}/categories/{{ cat[0] }}"> {{ cat[0] }} ({{ cat | last | size}}) </a>
                 </li>
             {% else %}
-                <li>
+                <li style="background-color:>
                 <a href="{{ site.baseurl }}/categories/{{ cat[0] }}"> {{ cat[0] }} ({{ cat | last | size}}) </a>
                 </li>
             {% endif %}
