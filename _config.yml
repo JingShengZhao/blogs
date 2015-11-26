@@ -1,9 +1,9 @@
-baseurl: /blogs
-markdown: kramdown 
-markdown_ext:  markdown,mkd,mkdn,md
-textile_ext:   textile
-encoding:  "utf-8"
+baseurl: ""
+markdown: redcarpet
+redcarpet:
+    extensions: [tables]
 safe: false
 pygments: true
 excerpt_separator: "\n\n\n"
 paginate: 5
+sitemapurl: "http://JingShengZhao.github.io/blogs"
