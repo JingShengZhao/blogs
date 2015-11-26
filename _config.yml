@@ -7,11 +7,10 @@ paginate:     8
 
 
 baseurl: /blogs
-markdown: redcarpet
-redcarpet:
-    extensions: [tables]
+markdown: kramdown 
 markdown_ext:  markdown,mkd,mkdn,md
 textile_ext:   textile
+encoding:  "utf-8"
 safe: false
 pygments: true
 highlighter: pygments
