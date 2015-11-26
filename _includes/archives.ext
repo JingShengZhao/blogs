@@ -1,6 +1,3 @@
----
-layout: default
----
 <h2> 归档 </h2>
   <ul class="archive-list">
     {% assign precount = 0 %}
