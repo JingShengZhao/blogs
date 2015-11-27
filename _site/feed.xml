@@ -1,0 +1,2126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title></title>
+    <description></description>
+    <link>/blogs/</link>
+    <atom:link href="/blogs/feed.xml" rel="self" type="application/rss+xml"/>
+    <pubDate>Thu, 26 Nov 2015 21:51:13 +0800</pubDate>
+    <lastBuildDate>Thu, 26 Nov 2015 21:51:13 +0800</lastBuildDate>
+    <generator>Jekyll v3.0.0</generator>
+    
+      <item>
+        <title>对 Java 内存模型的理解</title>
+        <description>&lt;h1 id=&quot;java-&quot;&gt;对 Java 内存模型的理解&lt;/h1&gt;
+
+&lt;h2 id=&quot;java--1&quot;&gt;Java 内存模型&lt;/h2&gt;
+
+&lt;p&gt;Java内存模型规定了在多线程程序中，什么样的行为是允许出现的，什么样的行为是禁止出现的。这样说可能有点抽象，我们换一个角度。将程序行为抽象成读操作和写操作，每个线程有自己的局部变量，同时线程之间还存在共享变量。那么一个多线程程序执行结束后，所有变量会有一个最终值。Java内存模型来决定什么样的值合法，什么样的值不合法。&lt;/p&gt;
+
+&lt;p&gt;内存模型不能要求的太严格，这样会阻碍很多优化方法，降低程序执行的效率，但也不能要求的太松，因为这样会导致一些执行结果违反我们的直觉。例如指令间的重排序问题，如果线程内部的指令完全按照程序中指明的次序执行，并且每次执行一条指令，执行的结果立即生效，那么就会阻碍很多优化方法，但这样对程序员是有好处的，因为程序员很容易推断程序的执行结果，这样写出的程序就容易与自己的意图一致。这种内存模型被称为顺序一致性模型(Sequential Consistency)。反之，如果为了优化程序执行效率，重排序的可能性有很多，那么程序的效率是提高了，但对程序员来说，就很难推断程序的执行结果。这一类的内存模型被称为Relaxed Memory Model。&lt;/p&gt;
+
+&lt;p&gt;这样，我们就遇到了一个两难的问题：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;内存模型要求严格，那么程序效率低，但程序员容易写对&lt;/li&gt;
+  &lt;li&gt;内存模型要求松，那么程序效率高，但程序员不容易写对&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;而程序的效率，与程序是否容易写对都很重要。为了解决这个问题，科学家提出了 Data Race Free 的概念，它是对多线程程序同步程度的一种描述，基本的思想是如果多线程程序进行了正确的同步，那么程序员就可以按照顺序一致性模型去推断程序的执行结果，而底层对内存操作的实现，可以按照 Relaxed Memory Model进行优化。&lt;/p&gt;
+
+&lt;p&gt;Java 内存模型包含了两方面的内容&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;对正确同步的多线程程序，保证其执行结果与在顺序内存模型下执行的结果一致&lt;/li&gt;
+  &lt;li&gt;对没有正确同步要求的多线程程序，进行一定程度的限制，以保证安全性&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;其中第一方面是与 Data Race Free相关的，第二方面与后面介绍的 Causality Requirements 相关。&lt;/p&gt;
+
+&lt;h2 id=&quot;data-race-free&quot;&gt;Data Race Free&lt;/h2&gt;
+
+&lt;p&gt;Java 内存模型其实定义了好几个概念来说明什么是正确的同步。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;冲突访问(conflicting accesses)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;如果存在多个线程，同时访问同一地址，并且至少有一个是写操作，那么这个程序存在冲突访问&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;happen-before order&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;两个操作之间如果满足下面任意一个条件，就可以说这两个操作之间存在 happen-before order:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;同一个线程内，在程序中有先后次序的操作&lt;/li&gt;
+  &lt;li&gt;构造器的结尾的操作与 finalize 函数的开始的操作&lt;/li&gt;
+  &lt;li&gt;unlock 操作与所有同一把锁上的 lock操作&lt;/li&gt;
+  &lt;li&gt;volatile 变量的读操作与所有对它的写操作&lt;/li&gt;
+  &lt;li&gt;对变量默认值的写操作与线程启动后的第一个操作&lt;/li&gt;
+  &lt;li&gt;如果线程 T2 检测到线程 T1 终止执行，那么 T1 的最后一次操作与 T2任意操作&lt;/li&gt;
+  &lt;li&gt;启动一个线程的操作与此线程内第一个操作&lt;/li&gt;
+  &lt;li&gt;如果线程 T1 中断了线程 T2，那么此中断操作与其它任何看到 T2 被中断的操作之间。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;其中有些我也不是很理解。。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;data race free&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;所有存在冲突访问的操作之间都有 happen-before order，那么此多线程程序满足 data race free&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;正确同步&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;假如多线程程序在顺序一致性模型下执行，如果它满足 data race free，那么此程序进行了正确的同步。&lt;/p&gt;
+
+&lt;p&gt;正确同步的多线程程序，其执行结果与在顺序一致性模型下的执行结果一致。仔细体会下概念之间的关系。有点绕。&lt;/p&gt;
+
+&lt;p&gt;另一方面，如果程序没有正确同步，执行结果也不是任意的，必须对其进行限制，但限制又不能太强，因为太强会阻碍优化。所以 Java 内存模型使用了 Causality Requirements 的概念。&lt;/p&gt;
+
+&lt;h2 id=&quot;causality-requirements&quot;&gt;Causality Requirements&lt;/h2&gt;
+
+&lt;p&gt;为了精确定义内存模型，Java语言规范中，提出了 Causality Requirements 的概念。不知道是什么原因，这个概念很少被提及，但是我觉得它是很重要的，但同时，也是非常令人费解的。语言规范中，首先定义了 Well-Formed Executions 的概念，现在对内存模型的很多讨论，都是在这一层，它包括了对多线程程序执行中，与锁，volatile变量，执行次序等等相关的规定。如果一个多线程程序的执行满足这些规定，那么这个执行就是 Well-Formed Executions 的。国内有一个系列文章《&lt;a href=&quot;http://ifeve.com/java-memory-model-0/&quot;&gt;深入理解Java内存模型&lt;/a&gt;》，主要是在这方面描述Java内存模型。此外，在 Java 并发领域内著名的 Doug Lea 也给出了一个 &lt;a href=&quot;http://gee.cs.oswego.edu/dl/jmm/cookbook.html&quot;&gt;The JSR-133 Cookbook for Compiler Writers&lt;/a&gt;，为编译器作者们提供参考,探讨的也是这方面的问题。但是，内存模型对多线程程序的执行是否合法，不仅仅要看它是否是 Well-Formed Executions，这次执行还需要满足 Causality Requirements。&lt;/p&gt;
+
+&lt;p&gt;语言规范中规定了一个构造过程，如果通过这个构造过程，可以构造出多线程程序最终的执行结果，那么这次执行就满足 Causality Requirements。构造过程从一个空集合C0开始，每次将其中添加若干操作，如果所有操作都能被添加，那么构造成功。即，&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;
+C0 -&amp;gt; C1 -&amp;gt; C2 -&amp;gt; ... -&amp;gt; C
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;其中 C_i 是 C_(i+1) 的子集。你可能注意到了，之前说的“操作能被添加”，什么叫操作能被添加呢？语言规范中规定了，每一个 Ci 都对应一个 Ei，所有 Ei 都要满足 Well-Formed Executions。也就是说，如果你添加了操作后，对应的 Ei 不满足 Well-Formed Executions，那么这个操作就不能被添加。如果最终，你的多线程程序无法构造出这样一个执行链，那么，它的执行结果是非法的。&lt;/p&gt;
+
+&lt;p&gt;另外，Java 内存模型最初论文作者维护了一个页面 &lt;a href=&quot;http://www.cs.umd.edu/~pugh/java/memoryModel/&quot;&gt;The Java Memory Model&lt;/a&gt;，其中有一个条目叫 &lt;a href=&quot;http://www.cs.umd.edu/~pugh/java/memoryModel/CausalityTestCases.html&quot;&gt;Causality Test Cases&lt;/a&gt;，给出了一些小例子，以便人们明白哪些行为是满足 Causality Requirements 的，哪些是不满足的。此外，在 Java 并发领域内著名的 Doug Lea 也给出了一个 &lt;a href=&quot;http://gee.cs.oswego.edu/dl/jmm/cookbook.html&quot;&gt;The JSR-133 Cookbook for Compiler Writers&lt;/a&gt;，为编译器作者们提供参考。不过据说这份规范有些地方要求太严格了，开发者们还是根据Java语言规范和虚拟机规范来开发。&lt;/p&gt;
+
+</description>
+        <pubDate>Sun, 17 Aug 2014 00:00:00 +0800</pubDate>
+        <link>/blogs/hello/2014/08/17/java-memory-model.html</link>
+        <guid isPermaLink="true">/blogs/hello/2014/08/17/java-memory-model.html</guid>
+        
+        
+        <category>hello</category>
+        
+      </item>
+    
+      <item>
+        <title>单例模式</title>
+        <description>&lt;h1 id=&quot;section&quot;&gt;单例模式&lt;/h1&gt;
+
+&lt;hr /&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;定义&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;单例模式确保一个类只有一个实例，并提供一个全局访问点&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;解释&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;从定义可以看出，特点是这个类只有一个实例。那么，为什么要这么做呢？原因在于，有些时候，这个类只有一个实例会节约资源，或者只有一个实例才能保证整个程序运行正确，一致。例如：线程池，缓存，对话框，日志对象等等 。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;示例&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;```java
+class Singleton {
+	private static Singleton singleton;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;private Singleton() {
+}
+
+public static Singleton getInstance() {
+	if (singleton == null) {
+		singleton = new Singleton();
+	}
+	return singleton;
+} } ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;这是单例的经典使用方式：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;一个 private static 对象&lt;/li&gt;
+  &lt;li&gt;构造器设置为 private&lt;/li&gt;
+  &lt;li&gt;一个 public static 方法提供全局访问点&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;开始的时候，其实我比较困惑为什么不在 singleton 声明处直接实例化对象，后来明白了，这是一种延迟实例化的手段，保证只在需要时才实例化。如果直接在声明时实例化，那么只要类加载了，即使不需要对象，也会对它进行实例化。&lt;/p&gt;
+
+&lt;p&gt;另外，这个经典使用方式其实是有问题的，对比后面 Tomcat 中的应用场景，你可能会发现问题所在。&lt;/p&gt;
+
+&lt;p&gt;在 Tomcat 中，就有一个单例模式，它是 &lt;code&gt;org.apache.catalina.tribes.util.StringManager&lt;/code&gt; 类。在 Tomcat 中，会有许多地方需要对错误消息进行处理。我们使用 &lt;code&gt;StringManager&lt;/code&gt; 类来管理这些错误消息。&lt;/p&gt;
+
+&lt;p&gt;错误消息首先不能硬编码到代码中，否则需要提供国际化支持时，就会很痛苦。错误消息需要定义在配置文件中。Tomcat 为每个包 (package) 都提供了三种语言的错误消息配置文件。每个包内都有很多类，我们没必要为每个类都生成一个 &lt;code&gt;StringManager&lt;/code&gt; 类，因为它们共享同一个配置文件。所以，一个包只需要一个 &lt;code&gt;StringManager&lt;/code&gt; 对象就好了。我们怎么为一个包生成一个 &lt;code&gt;StringManager&lt;/code&gt; 呢？ Tomcat 在 &lt;code&gt;StringManager&lt;/code&gt; 内部保存着所有包的 &lt;code&gt;StringManager&lt;/code&gt; 实例，你需要一个实例时，只需要提供包名，调用 &lt;code&gt;StringManager&lt;/code&gt; 的相应方法，就会返回与此包名对应的 &lt;code&gt;StringManager&lt;/code&gt; 实例。下面是相关的代码，一目了然。&lt;/p&gt;
+
+&lt;p&gt;```java&lt;/p&gt;
+
+&lt;p&gt;public class StringManager {&lt;/p&gt;
+
+&lt;p&gt;private StringManager(String packageName) {
+    …
+}&lt;/p&gt;
+
+&lt;p&gt;private static final Hashtable&amp;lt;String, StringManager&amp;gt; managers =
+new Hashtable&amp;lt;&amp;gt;();&lt;/p&gt;
+
+&lt;p&gt;/**
+* Get the StringManager for a particular package. If a manager for
+* a package already exists, it will be reused, else a new
+* StringManager will be created and returned.
+*
+* @param packageName The package name
+*/
+public static final synchronized StringManager getManager(String packageName) {
+    StringManager mgr = managers.get(packageName);
+    if (mgr == null) {
+        mgr = new StringManager(packageName);
+        managers.put(packageName, mgr);
+    }
+    return mgr;
+}
+```&lt;/p&gt;
+
+&lt;p&gt;使用了一个 &lt;code&gt;Hashtable&lt;/code&gt; 来保存 &lt;code&gt;managers&lt;/code&gt;，每次通过 &lt;code&gt;getManager&lt;/code&gt; 方法，通过包名访问，如果访问不到，就为此包新生成一个 &lt;code&gt;StringManager&lt;/code&gt; 实例。&lt;/p&gt;
+
+&lt;p&gt;有没有注意到 getManager 方法被  &lt;code&gt;synchronized&lt;/code&gt; 修饰？这就是之前我们举的经典示例时说的问题。在使用单例时，只有一个对象，这个对象可能是被多个线程共享的。如果不同步，就可能会出现数据不一致的情况。例如，两个线程同时调用了 &lt;code&gt;getManager&lt;/code&gt;，访问同一个包名。正确的执行是，其中一个线程第一次调用时，mgr 为空，此时生成一个 StringManager。第二个线程调用时，mgr 就不为空了。但是，如果不同步，那么当第一个线程通过了 &lt;code&gt;if(mgr == null)&lt;/code&gt; 时，此时线程被切换了，这时，第二个线程也会通过 &lt;code&gt;if(mgr == null)&lt;/code&gt; ，这样就导致同一个包，生成了两个 &lt;code&gt;StringManager&lt;/code&gt;。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;扩展阅读&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;关于单例模式与线程安全，建议阅读一下这篇文章：&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://blog.csdn.net/haoel/article/details/4028232&quot;&gt;深入浅出单实例Singleton设计模式&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;关于单例模式的其它实现方式，可以阅读&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://cantellow.iteye.com/blog/838473&quot;&gt;单例模式的七种写法&lt;/a&gt;&lt;/p&gt;
+</description>
+        <pubDate>Sun, 27 Jul 2014 00:00:00 +0800</pubDate>
+        <link>/blogs/%E6%8A%80%E6%9C%AF/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/2014/07/27/singleton.html</link>
+        <guid isPermaLink="true">/blogs/%E6%8A%80%E6%9C%AF/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/2014/07/27/singleton.html</guid>
+        
+        
+        <category>技术</category>
+        
+        <category>设计模式</category>
+        
+      </item>
+    
+      <item>
+        <title>外观模式</title>
+        <description>&lt;h1 id=&quot;section&quot;&gt;外观模式&lt;/h1&gt;
+
+&lt;hr /&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;定义&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;外观模式提供了一个统一的接口，用来访问子系统中的一群接口。外观定义了一个高层接口，让子系统的更容易使用。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;解释&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;我有一个多功能的盒子，盒子让提供了100个接口，每个都有不同的功能。现在我要把这个盒子给别人用了，我只想让别人用到其中5个接口，或者别人只需要其中5个接口。那么，我可以再做一个盒子，这个盒子套在原来的盒子外面，并且只提供5个接口。这样，用的人会觉得很方便，我也觉得这样很安全。&lt;/p&gt;
+
+&lt;p&gt;我们可能要问，为什么原来的盒子要有100个接口呢？为什么不直接提供5个接口呢？原因可能会很多，可能这个盒子我们没法控制，是别人给我们的。也可能这个盒子要与其它众多盒子配合使用，其它盒子要用到其它的95个接口。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;示例&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Tomcat 中有一系列 XXXFacade 类，就是为 XXX类提供一种外观。例如 &lt;code&gt;org.apache.catalina.connector.RequestFacade&lt;/code&gt; 类，就是 &lt;code&gt;org.apache.catalina.connector.Request&lt;/code&gt; 类的外观，它的构造器中要指明 &lt;code&gt;Request&lt;/code&gt; 类：&lt;/p&gt;
+
+&lt;p&gt;```java
+public RequestFacade(Request request) {&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;this.request = request;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;}
+```&lt;/p&gt;
+
+&lt;p&gt;它提供的功能，也是调用 &lt;code&gt;Request&lt;/code&gt; 类的方法完成的，例如：&lt;/p&gt;
+
+&lt;p&gt;```java
+@Override
+public Object getAttribute(String name) {&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;if (request == null) {
+    throw new IllegalStateException(
+                    sm.getString(&quot;requestFacade.nullRequest&quot;));
+}
+
+return request.getAttribute(name); } ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;为什么要费此周折呢，直接用 &lt;code&gt;Request&lt;/code&gt; 类不好么？&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;
+不好
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;原因在于，Tomcat 作为 &lt;code&gt;Servlet&lt;/code&gt; 容器，是要调用客户端的 &lt;code&gt;jsp&lt;/code&gt; 代码，并将实现 &lt;code&gt;HttpServletRequest&lt;/code&gt; 及 &lt;code&gt;HttpServletResponse&lt;/code&gt; 类的对象传递给客户端代码。如果直接传递 &lt;code&gt;Request&lt;/code&gt; 对象，那么知道 &lt;code&gt;Request&lt;/code&gt; 实现细节的程序员就可以通过转型调用 &lt;code&gt;Request&lt;/code&gt; 的所有 &lt;code&gt;public&lt;/code&gt; 方法，这是我们不愿意看到的，因为其中一部分 &lt;code&gt;public&lt;/code&gt; 方法不是给客户端程序员使用的，是用于 Tomcat 内部的。所以，可以为 &lt;code&gt;Request&lt;/code&gt; 类提供了一个外观类 &lt;code&gt;RequestFacade&lt;/code&gt;，把 &lt;code&gt;RequestFacade&lt;/code&gt; 类的对象传递给客户端代码，在 &lt;code&gt;RequestFacade&lt;/code&gt; 类中，只开放必要的接口。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+protected void doGet(
+HttpServletRequest request, HttpServletResponse response) 
+throws ServletException, IOException {
+	response.getWriter().write(&quot;bar&quot;);
+}
+&lt;/code&gt;&lt;/p&gt;
+
+</description>
+        <pubDate>Sun, 27 Jul 2014 00:00:00 +0800</pubDate>
+        <link>/blogs/%E6%8A%80%E6%9C%AF/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/2014/07/27/facade.html</link>
+        <guid isPermaLink="true">/blogs/%E6%8A%80%E6%9C%AF/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/2014/07/27/facade.html</guid>
+        
+        
+        <category>技术</category>
+        
+        <category>设计模式</category>
+        
+      </item>
+    
+      <item>
+        <title>观察者模式</title>
+        <description>&lt;h1 id=&quot;section&quot;&gt;观察者模式&lt;/h1&gt;
+
+&lt;hr /&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;定义&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;观察者模式定义了对象之间的一对多依赖，当一个对象改变时，所以依赖于它的对象都会得到通知。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;示例&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;```java
+interface Observer {
+	void update(int data);
+}&lt;/p&gt;
+
+&lt;p&gt;class NewsPaper {
+	private LinkedList&lt;observer&gt; observers;&lt;/observer&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;public NewsPaper() {
+	observers = new LinkedList&amp;lt;&amp;gt;();
+}
+
+public void subscribe(Observer o) {
+	observers.add(o);
+}
+
+public void unsubscribe(Observer o) {
+	observers.remove(o);
+}
+
+public void changeData(int data) {
+	for (Observer o : observers) {
+		o.update(data);
+	}
+} }
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;class Reader implements Observer {
+	private String name;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;public Reader(NewsPaper paper, String name) {
+	this.name = name;
+	paper.subscribe(this);
+}
+
+@Override
+public void update(int data) {
+	System.out.println(name + &quot; update data:&quot; + data);
+} }
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;public class TestObserve {
+	public static void main(String[] args) {
+		NewsPaper newsPaper = new NewsPaper();
+		Reader tom = new Reader(newsPaper, “tom”);
+		Reader jack = new Reader(newsPaper, “jack”);
+		newsPaper.changeData(10);
+		System.out.println(“–”);
+		newsPaper.unsubscribe(tom);
+		newsPaper.changeData(5);
+	}
+}
+```&lt;/p&gt;
+
+&lt;p&gt;所有  Reader 都是观察者，当他订阅了 NewsPaper 后。NewsPaper 一有新数据，就会通知所有订阅了它的 Reader。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;为什么&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;为什么要使用观察者模式？因为在初始化被观察者时，并不知道当数据变化时，需要通知谁。需要通知的对象是动态变化的。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;谁还用了观察者模式&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;在 GUI 编程时，我们想要在事件被触发时，执行我们指定的动作。例如想在按钮被点击时弹窗口，就可以通过类似 &lt;code&gt;AddListener&lt;/code&gt;，将已经实现相应接口的对象添加到按钮的“订阅列表”中，当按钮被点击时，系统会依次调用“订阅列表”中对象的相应方法。弹窗口因此被触发。&lt;/p&gt;
+
+</description>
+        <pubDate>Fri, 25 Jul 2014 00:00:00 +0800</pubDate>
+        <link>/blogs/%E6%8A%80%E6%9C%AF/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/2014/07/25/observer.html</link>
+        <guid isPermaLink="true">/blogs/%E6%8A%80%E6%9C%AF/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/2014/07/25/observer.html</guid>
+        
+        
+        <category>技术</category>
+        
+        <category>设计模式</category>
+        
+      </item>
+    
+      <item>
+        <title>OpenJDK 源码阅读之 Java 输入输出(I/O) 之 字节流输出</title>
+        <description>&lt;h1 id=&quot;openjdk--java-io--&quot;&gt;OpenJDK 源码阅读之 Java 输入输出(I/O) 之 字节流输出&lt;/h1&gt;
+
+&lt;p&gt;标签（空格分隔）： 源代码阅读 Java 封神之路&lt;/p&gt;
+
+&lt;h3 id=&quot;section&quot;&gt;字节流输出&lt;/h3&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/blog-images/java_io_write_bytes.png&quot; alt=&quot;java_io_write_bytes&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;图1 Java 字节输出类&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;OutputStream&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;OutputStream是所有字节输出类的超类，这是个抽象类，需要实现其中定义的 &lt;code&gt;write&lt;/code&gt; 函数，才能有实用的功能。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+    public abstract void write(int b) throws IOException;
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;其它方法都是在 &lt;code&gt;write&lt;/code&gt; 的基础上实现的。例如这个多态的　&lt;code&gt;write&lt;/code&gt; ：&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public void write(byte b[], int off, int len) 
+throws IOException {
+    if (b == null) {
+        throw new NullPointerException();
+    } else if ((off &amp;lt; 0) || (off &amp;gt; b.length) || (len &amp;lt; 0) ||
+               ((off + len) &amp;gt; b.length) || ((off + len) &amp;lt; 0)) {
+        throw new IndexOutOfBoundsException();
+    } else if (len == 0) {
+        return;
+    }
+    for (int i = 0 ; i &amp;lt; len ; i++) {
+        write(b[off + i]);
+    }
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;FileOutputStream&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;FileOutputStream&lt;/code&gt; 会将内容输出到 &lt;code&gt;File&lt;/code&gt; 或者 &lt;code&gt;FileDescriptor&lt;/code&gt;， 此类是按照字节输出，如果想按照字符输出，可以使用 &lt;code&gt;FileReader&lt;/code&gt; 类。&lt;/p&gt;
+
+&lt;p&gt;构造器中，需要指明输出的文件：&lt;/p&gt;
+
+&lt;p&gt;```java
+public FileOutputStream(File file, boolean append)
+    throws FileNotFoundException
+{
+    String name = (file != null ? file.getPath() : null);
+    SecurityManager security = System.getSecurityManager();
+    if (security != null) {
+        security.checkWrite(name);
+    }
+    if (name == null) {
+        throw new NullPointerException();
+    }
+    this.fd = new FileDescriptor();
+    this.append = append;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;fd.incrementAndGetUseCount();
+open(name, append); } ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;写入操作是一个　&lt;code&gt;native&lt;/code&gt; 函数，与操作系统相关。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+private native void write(int b, boolean append) throws IOException;
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;如果对比一下字节输入类，你会发现输入和输出在实现上有很大的相似性，它们是对称的。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;ByteArrayOutputStream&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;ByteArrayOutputStream　会将数据写入字节数组中, 可以通过 &lt;code&gt;toByteArray,toString&lt;/code&gt; 得到这些数据。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+protected byte buf[];
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;初始化时，可以指定这个数组的大小：&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public ByteArrayOutputStream(int size) {
+    if (size &amp;lt; 0) {
+        throw new IllegalArgumentException(&quot;Negative initial size: &quot;
+                                           + size);
+    }
+    buf = new byte[size];
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;写入时，会写入这个数组。&lt;code&gt;write&lt;/code&gt; 会先保证数组的大小，如果不够用，还会自动进行扩充。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public synchronized void write(int b) {
+    ensureCapacity(count + 1);
+    buf[count] = (byte) b;
+    count += 1;
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;FilterOutputStream&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;所有有过滤功能的类的基类，例如，对输出流进行转化，或者添加新的功能。初始化时，需要提供一个底层的流，用于写入数据，&lt;code&gt;FilterOUtputStream&lt;/code&gt; 类的所有方法都是通过调用这个底层流的方法实现的。&lt;/p&gt;
+
+&lt;p&gt;初始化时，&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+protected OutputStream out;
+public FilterOutputStream(OutputStream out) {
+    this.out = out;
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;写入时：&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public void write(int b) throws IOException {
+    out.write(b);
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;BufferedOutputStream&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;BufferedOutputStream 是 FilterOutputStream 的子类，提供缓冲功能，所以，你不用每写入一个字节都要调用操作系统的 &lt;code&gt;write&lt;/code&gt; 方法，而是积累到缓冲区，然后一起写入。&lt;/p&gt;
+
+&lt;p&gt;缓冲区就是一个字节数组，在构造器中被初始化。&lt;/p&gt;
+
+&lt;p&gt;```java
+protected byte buf[];&lt;/p&gt;
+
+&lt;p&gt;public BufferedOutputStream(OutputStream out) {
+    this(out, 8192);
+}&lt;/p&gt;
+
+&lt;p&gt;public BufferedOutputStream(OutputStream out, int size) {
+    super(out);
+    if (size &amp;lt;= 0) {
+        throw new IllegalArgumentException(“Buffer size &amp;lt;= 0”);
+    }
+    buf = new byte[size];
+}
+```&lt;/p&gt;
+
+&lt;p&gt;当调用 &lt;code&gt;write(b)&lt;/code&gt; 时，并不真正写入，而是将要写入的数据存放在缓冲区内，等缓冲区满后，一次性写入数据。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public synchronized void write(int b) throws IOException {
+    if (count &amp;gt;= buf.length) {
+        flushBuffer();
+    }
+    buf[count++] = (byte)b;
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;DataOutputStream&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;DataOutputStream 可以按 Java 的基本类型写入数据。写入的原理是，将基本类型数据中的字节分离出来，然后将这些字节写入。例如：&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public final void writeBoolean(boolean v) throws IOException {
+    out.write(v ? 1 : 0);
+    incCount(1);
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;boolean 类型就是按照 &lt;code&gt;0/1&lt;/code&gt; 的方式写入的。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public final void writeShort(int v) throws IOException {
+    out.write((v &amp;gt;&amp;gt;&amp;gt; 8) &amp;amp; 0xFF);
+    out.write((v &amp;gt;&amp;gt;&amp;gt; 0) &amp;amp; 0xFF);
+    incCount(2);
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;short 是两个字节，需要将其中的两个字节分离出来，分别写入，&lt;code&gt;incCount&lt;/code&gt; 加了2. &lt;code&gt;writeChar&lt;/code&gt; 同理，因为它也是写入两个字节。&lt;/p&gt;
+
+&lt;p&gt;浮点数比较特殊，没法直接分离出各个字节，要调用 &lt;code&gt;Float&lt;/code&gt; 的一个静态方法，把浮点数转化成四个字节，再通过 &lt;code&gt;writeInt&lt;/code&gt; 写入。&lt;code&gt;floatToInitBits&lt;/code&gt; 会调用一个 &lt;code&gt;native&lt;/code&gt; 方法, 按照 IEEE 754 标准，完成其主要功能。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+    public final void writeFloat(float v) throws IOException {
+        writeInt(Float.floatToIntBits(v));
+    }
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;PipedOutputStream&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;管道输出流可以与一个管道输入流相关联，关联后，共用一个缓冲区，输出流写入数据，输入流读取数据，二者应该处于不同线程，否则可能出现死锁。&lt;/p&gt;
+
+&lt;p&gt;原理上一篇文章在介绍 PipedInputStream 时，已经阐述。&lt;/p&gt;
+
+&lt;p&gt;另外，我觉得在这里，有必要说一下那几个用于压缩和解压缩的类，实现就不说了，就讲下他们的功能与关系。&lt;/p&gt;
+
+&lt;h2 id=&quot;java-io-&quot;&gt;JAVA IO 压缩与解压缩&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;InflaterInputStream: 用于解压 deflate 格式的压缩数据，底层流为压缩后的数据，read 返回解压后的数据。&lt;/li&gt;
+  &lt;li&gt;InflaterOutputStream: 用于解压 deflate 格式的压缩数据，底层流为压缩后的数据，write 写入解压后的数据。&lt;/li&gt;
+  &lt;li&gt;DeflaterInputStream: 用于压缩成 deflate 格式的数据，底层流为未压缩数据，read 返回压缩后的数据。&lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;DeflaterOutputStream: 用于压缩成 deflate 格式的数据，底层流为未压缩数据，write 写入压缩后的数据。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;GZIPInputStream: 用于解压 GZip 格式的压缩数据，底层流为压缩后的数据，read 返回解压后的数据。它是 InflaterInputStream 的子类。&lt;/li&gt;
+  &lt;li&gt;GZIPOutputStream: 用于压缩成 Gzip格式的数据，底层流为未压缩数据，write 写入压缩后的数据。是 DeflaterOutputStream 的子类(注意不是InflaterOutputStream) 。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;不得不说，这个API设计的真是太反直觉了。GZIP 格式的解压和压缩一个是 GZIPInputStream，一个是 GZIPOutputStream。而 deflate 格式的解压和压缩，一个是 InflaterInputStream/InflaterOutputStream，另一个是 DeflaterInputStream/DeflaterOutputStream。当同时需要对 gzip 和 deflate 压缩和解压缩时，就感觉，真是反直觉。&lt;/p&gt;
+</description>
+        <pubDate>Sat, 12 Jul 2014 00:00:00 +0800</pubDate>
+        <link>/blogs/%E6%8A%80%E6%9C%AF/java/%E6%BA%90%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB/2014/07/12/java-io-write-bytes.html</link>
+        <guid isPermaLink="true">/blogs/%E6%8A%80%E6%9C%AF/java/%E6%BA%90%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB/2014/07/12/java-io-write-bytes.html</guid>
+        
+        
+        <category>技术</category>
+        
+        <category>Java</category>
+        
+        <category>源代码阅读</category>
+        
+      </item>
+    
+      <item>
+        <title>OpenJDK 源码阅读之 Java 输入输出(I/O) 之 字节流输入</title>
+        <description>&lt;h1 id=&quot;openjdk--java-io--&quot;&gt;OpenJDK 源码阅读之 Java 输入输出(I/O) 之 字节流输入&lt;/h1&gt;
+
+&lt;p&gt;标签（空格分隔）： 源代码阅读 Java 封神之路&lt;/p&gt;
+
+&lt;p&gt;Java 的输入输出总是给人一种很混乱的感觉，要想把这个问题搞清楚，必须对各种与输入输出相关的类之间的关系有所了解。只有你了解了他们之间的关系，知道设计这个类的目的是什么，才能更从容的使用他们。&lt;/p&gt;
+
+&lt;p&gt;我们先对 Java I/O 的总体结构进行一个总结，再通过分析源代码，给出把每个类的关键功能是如何实现的。&lt;/p&gt;
+
+&lt;h2 id=&quot;java-io-&quot;&gt;Java I/O 的主要结构&lt;/h2&gt;
+
+&lt;p&gt;Java 的输入输出，主要分为以下几个部分：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;字节流&lt;/li&gt;
+  &lt;li&gt;字符流&lt;/li&gt;
+  &lt;li&gt;Socket&lt;/li&gt;
+  &lt;li&gt;新 I/O&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;每个部分，都包含了输入和输出两部分。&lt;/p&gt;
+
+&lt;h2 id=&quot;section&quot;&gt;实现概要&lt;/h2&gt;
+
+&lt;p&gt;这里只给出每个类的实现概要，具体每个类的实现分析，可以参见我的 &lt;a href=&quot;https://github.com/minixalpha/SourceLearning/tree/master/openjdk&quot;&gt;GitHub-SourceLearning-OpenJDK&lt;/a&gt; 页面。根据导航中的链接，进入 &lt;a href=&quot;https://github.com/minixalpha/SourceLearning/tree/master/openjdk/notes/openjdk/jdk/src/share/classes/java/io&quot;&gt;java.io&lt;/a&gt; ，即可看到对每个类的分析。&lt;/p&gt;
+
+&lt;h3 id=&quot;section-1&quot;&gt;字节流输入&lt;/h3&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/blog-images/java_io_read_bytes.png&quot; alt=&quot;java_io_read_bytes&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;图1 Java 字节输入类&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;InputStream&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;InputStream 是所有字节输入类的基类，它有一个未实现的 &lt;code&gt;read&lt;/code&gt; 方法，子类需要实现这个 &lt;code&gt;read&lt;/code&gt; 方法， 它和数据的来源相关。它的各种不同子类，或者是添加了功能，或者指明了不同的数据来源。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public abstract int read() throws IOException;
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;ByteArrayInputStream&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;ByteArrayInputStream&lt;/code&gt; 有一个内部 &lt;code&gt;buffer&lt;/code&gt; ， 包含从流中读取的字节，还有一个内部 &lt;code&gt;counter&lt;/code&gt;， 跟踪下一个要读入的字节。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+protected byte buf[];
+protected int pos;
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;这个类在初始化时，需要指定一个 &lt;code&gt;byte[]&lt;/code&gt;，作为数据的来源，它的 &lt;code&gt;read&lt;/code&gt;，就读入这个 &lt;code&gt;byte[]&lt;/code&gt; 中所包含的数据。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public ByteArrayInputStream(byte buf[]) {
+    this.buf = buf;
+    this.pos = 0;
+    this.count = buf.length;
+}
+public synchronized int read() {
+    return (pos &amp;lt; count) ? (buf[pos++] &amp;amp; 0xff) : -1;
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;FileInputStream&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;FileInputStream 的数据来源是文件，即从文件中读取字节。初始化时，需要指定一个文件：&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public FileInputStream(File file) 
+throws FileNotFoundException {
+    String name = (file != null ? file.getPath() : null);
+    SecurityManager security = System.getSecurityManager();
+    if (security != null) {
+        security.checkRead(name);
+    }
+    if (name == null) {
+        throw new NullPointerException();
+    }
+    fd = new FileDescriptor();
+    fd.incrementAndGetUseCount();
+    open(name);
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;以后读取的数据，都来自于这个文件。这里的 &lt;code&gt;read&lt;/code&gt; 方法是一个  &lt;code&gt;native&lt;/code&gt; 方法，它的实现与操作系统相关。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public native int read() throws IOException;
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;FilterInputStream&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;FilterInputStream将其它输入流作为数据来源，其子类可以在它的基础上，对数据流添加新的功能。我们经常看到流之间的嵌套，以添加新的功能。就是在这个类的基础上实现的。所以，它的初始化中，会指定一个字节输入流：&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+    protected volatile InputStream in;
+    protected FilterInputStream(InputStream in) {
+        this.in = in;
+    }
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;读取操作，就依靠这个流实现：&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public int read() throws IOException {
+    return in.read();
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;BufferedInputStream&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;BufferedInputStream 是 FilterInputStream 的子类，所以，需要给它提供一个底层的流，用于读取，而它本身，则为此底层流增加功能，即缓冲功能。以减少读取操作的开销，提升效率。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+protected volatile byte buf[];
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;内部缓冲区由一个 &lt;code&gt;volatile byte&lt;/code&gt; 数组实现，大多线程环境下，一个线程向 &lt;code&gt;volatile&lt;/code&gt; 数据类型中写入的数据，会立即被其它线程看到。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;read&lt;/code&gt; 操作会先看一下缓冲区里的数据是否已经全部被读取了，如果是，就调用底层流，填充缓冲区，再从缓冲区中按要求读取指定的字节。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public synchronized int read() throws IOException {
+    if (pos &amp;gt;= count) {
+        fill();
+        if (pos &amp;gt;= count)
+            return -1;
+    }
+    return getBufIfOpen()[pos++] &amp;amp; 0xff;
+}
+private byte[] getBufIfOpen() throws IOException {
+    byte[] buffer = buf;
+    if (buffer == null)
+        throw new IOException(&quot;Stream closed&quot;);
+    return buffer;
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;DataInputStream&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;DataInputStream&lt;/code&gt; 也是 &lt;code&gt;FilterInputStream&lt;/code&gt; 的子类，它提供的功能是：可以从底层的流中读取基本数据类型，例如 &lt;code&gt;int&lt;/code&gt;, &lt;code&gt;char&lt;/code&gt; 等等。&lt;code&gt;DataInputStream&lt;/code&gt; 是非线程安全的， 你必须自己保证处理线程安全相关的细节。&lt;/p&gt;
+
+&lt;p&gt;例如，readBoolean 会读入一个字节，然后根据是否为0,返回 &lt;code&gt;true/false&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public final boolean readBoolean() throws IOException {
+    int ch = in.read();
+    if (ch &amp;lt; 0)
+        throw new EOFException();
+    return (ch != 0);
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;readShort 会读入两个字节，然后拼接成一个 short 类型的数据。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public final short readShort() throws IOException {
+    int ch1 = in.read();
+    int ch2 = in.read();
+    if ((ch1 | ch2) &amp;lt; 0)
+        throw new EOFException();
+    return (short)((ch1 &amp;lt;&amp;lt; 8) + (ch2 &amp;lt;&amp;lt; 0));
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;int 和 long 依此类推，分别读入4个字节，8个字节，然后进行拼接。&lt;/p&gt;
+
+&lt;p&gt;但是，浮点数就不能通过简单的拼接来解决了，而要读入足够的字节数，然后再按照 IEEE 754 的标准进行解释：&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public final float readFloat() throws IOException {
+    return Float.intBitsToFloat(readInt());
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;PushbackInputstream&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;PushbackInputstream 类也是FilterInputStream的子类，它提供的功能是，可以将已经读入的字节，再放回输入流中，下次读取时，可以读取到这个放回的字节。这在某些情境下是非常有用的。它的实现，就是依靠类似缓冲区的原理。被放回的字节，实际上是放在缓冲区里，读取时，先查看缓冲区里有没有字节，如果有就从这里读取，如果没有，就从底层流里读取。&lt;/p&gt;
+
+&lt;p&gt;缓冲区是一个字节数组：&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+protected byte[] buf;
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;读取时，优先从这里读取，读不到，再从底层流读取。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public int read() throws IOException {
+    ensureOpen();
+    if (pos &amp;lt; buf.length) {
+        return buf[pos++] &amp;amp; 0xff;
+    }
+    return super.read();
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;PipedInputStream&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;PipedInputStream 与 PipedOutputStream 配合使用，它们通过 &lt;code&gt;connect&lt;/code&gt;  函数相关联。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public void connect(PipedOutputStream src) throws IOException {
+    src.connect(this);
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;它们共用一个缓冲区，一个从中读取，一个从中写入。&lt;/p&gt;
+
+&lt;p&gt;PipedInputStream内部有一个缓冲区，&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+protected byte buffer[];
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;读取时，就从这里读：&lt;/p&gt;
+
+&lt;p&gt;```java
+public synchronized int read()  throws IOException {
+    if (!connected) {
+        throw new IOException(“Pipe not connected”);
+    } else if (closedByReader) {
+        throw new IOException(“Pipe closed”);
+    } else if (writeSide != null &amp;amp;&amp;amp; !writeSide.isAlive()
+               &amp;amp;&amp;amp; !closedByWriter &amp;amp;&amp;amp; (in &amp;lt; 0)) {
+        throw new IOException(“Write end dead”);
+    }&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;readSide = Thread.currentThread();
+int trials = 2;
+while (in &amp;lt; 0) {
+    if (closedByWriter) {
+        /* closed by writer, return EOF */
+        return -1;
+    }
+    if ((writeSide != null) &amp;amp;&amp;amp; (!writeSide.isAlive()) &amp;amp;&amp;amp; (--trials &amp;lt; 0)) {
+        throw new IOException(&quot;Pipe broken&quot;);
+    }
+    /* might be a writer waiting */
+    notifyAll();
+    try {
+        wait(1000);
+    } catch (InterruptedException ex) {
+        throw new java.io.InterruptedIOException();
+    }
+}
+int ret = buffer[out++] &amp;amp; 0xFF;
+if (out &amp;gt;= buffer.length) {
+    out = 0;
+}
+if (in == out) {
+    /* now empty */
+    in = -1;
+}
+
+return ret; } ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;过程比我们想的要复杂，因为这涉及两个线程，需要相互配合，所以，需要检查很多东西，才能最终从缓冲区中读到数据。&lt;/p&gt;
+
+&lt;p&gt;PipedOutputStream 类写入时，会调用 PipedInputStream 的receive功能，把数据写入 PipedInputStream 的缓冲区。&lt;/p&gt;
+
+&lt;p&gt;我们看一下 &lt;code&gt;PipedOutputStream.write&lt;/code&gt;  函数：&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public void write(int b)  throws IOException {
+    if (sink == null) {
+        throw new IOException(&quot;Pipe not connected&quot;);
+    }
+    sink.receive(b);
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;可以看出，调用了相关联的管道输入流的 &lt;code&gt;receive&lt;/code&gt; 函数。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+protected synchronized void receive(int b) throws IOException {
+    checkStateForReceive();
+    writeSide = Thread.currentThread();
+    if (in == out)
+        awaitSpace();
+    if (in &amp;lt; 0) {
+        in = 0;
+        out = 0;
+    }
+    buffer[in++] = (byte)(b &amp;amp; 0xFF);
+    if (in &amp;gt;= buffer.length) {
+        in = 0;
+    }
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;receive&lt;/code&gt; 的主要功能，就是把写入的数据放入缓冲区内。&lt;/p&gt;
+
+&lt;p&gt;注意注意的是，这两个类相互关联的对象，应该属于两个不同的线程，否则，容易造成死锁。&lt;/p&gt;
+
+&lt;h2 id=&quot;section-2&quot;&gt;扩展阅读&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;a href=&quot;http://www.ibm.com/developerworks/cn/java/j-lo-javaio/&quot;&gt;深入分析 Java I/O 的工作机制&lt;/a&gt;&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;a href=&quot;http://www.cnblogs.com/oubo/archive/2012/01/06/2394638.html&quot;&gt;Java IO流学习总结&lt;/a&gt;&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+</description>
+        <pubDate>Fri, 11 Jul 2014 00:00:00 +0800</pubDate>
+        <link>/blogs/%E6%8A%80%E6%9C%AF/java/%E6%BA%90%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB/2014/07/11/java-io-read-bytes.html</link>
+        <guid isPermaLink="true">/blogs/%E6%8A%80%E6%9C%AF/java/%E6%BA%90%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB/2014/07/11/java-io-read-bytes.html</guid>
+        
+        
+        <category>技术</category>
+        
+        <category>Java</category>
+        
+        <category>源代码阅读</category>
+        
+      </item>
+    
+      <item>
+        <title>OpenJDK 源码阅读之 LinkedList</title>
+        <description>&lt;h1 id=&quot;openjdk--linkedlist&quot;&gt;OpenJDK 源码阅读之 LinkedList&lt;/h1&gt;
+
+&lt;hr /&gt;
+
+&lt;h2 id=&quot;section&quot;&gt;概要&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;类继承关系&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;
+java.lang.Object
+    java.util.AbstractCollection&amp;lt;E&amp;gt;
+        java.util.AbstractList&amp;lt;E&amp;gt;
+            java.util.AbstractSequentialList&amp;lt;E&amp;gt;
+                java.util.LinkedList&amp;lt;E&amp;gt;
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;定义&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public class LinkedList&amp;lt;E&amp;gt;
+    extends AbstractSequentialList&amp;lt;E&amp;gt;
+    implements List&amp;lt;E&amp;gt;, Deque&amp;lt;E&amp;gt;, Cloneable, java.io.Serializable
+{
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;要点&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;双链表&lt;/li&gt;
+  &lt;li&gt;非同步&lt;/li&gt;
+  &lt;li&gt;fail-fast: 即创建 iterator 后，对链表进行了添加，删除，但是却没有用 iterator 的方法，就会抛出 ConcurrentModificationException 异常。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;section-1&quot;&gt;实现&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Node&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;```java
+private static class Node&lt;e&gt; {
+    E item;
+    Node&lt;e&gt; next;
+    Node&lt;e&gt; prev;&lt;/e&gt;&lt;/e&gt;&lt;/e&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;Node(Node&amp;lt;E&amp;gt; prev, E element, Node&amp;lt;E&amp;gt; next) {
+    this.item = element;
+    this.next = next;
+    this.prev = prev;
+} } ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;双链表每个结点由 &lt;code&gt;Node&lt;/code&gt; 类表示, 由其成员可以看出，确实是一个双链表。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;add&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;java
+/**
+ * Appends the specified element to the end of this list.
+ *
+ * &amp;lt;p&amp;gt;This method is equivalent to {@link #addLast}.
+ *
+ * @param e element to be appended to this list
+ * @return {@code true} (as specified by {@link Collection#add})
+ */
+public boolean add(E e) {
+    linkLast(e);
+    return true;
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;add&lt;/code&gt; 操作会在表的最后添加一个元素，调用 &lt;code&gt;linkLast&lt;/code&gt; 实现。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;LinkLast&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;java
+void linkLast(E e) {
+    final Node&amp;lt;E&amp;gt; l = last;
+    final Node&amp;lt;E&amp;gt; newNode = new Node&amp;lt;&amp;gt;(l, e, null);
+    last = newNode;
+    if (l == null)
+        first = newNode;
+    else
+        l.next = newNode;
+    size++;
+    modCount++;
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;linkLast&lt;/code&gt; 先生成新的结点，再将原来的最后结点的 &lt;code&gt;next&lt;/code&gt; 指向新结点，需要注意链表为空时的情况。另外，新结点的 &lt;code&gt;prev&lt;/code&gt;, &lt;code&gt;next&lt;/code&gt; 都是在其构造函数中设置的，所以需要将其相邻结点传入。构造函数为：&lt;/p&gt;
+
+&lt;p&gt;```java
+   private static class Node&lt;e&gt; {
+        E item;
+        Node&lt;e&gt; next;
+        Node&lt;e&gt; prev;&lt;/e&gt;&lt;/e&gt;&lt;/e&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;    Node(Node&amp;lt;E&amp;gt; prev, E element, Node&amp;lt;E&amp;gt; next) {
+        this.item = element;
+        this.next = next;
+        this.prev = prev;
+    }
+} ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;serialVersionUID&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;java
+    private static final long serialVersionUID = 876323262645176354L;
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;序列化版本号，如果前一版本序列化后，后一版本发生了很大改变，就使用这个号告诉虚拟机，不能反序列化了。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;writeObject&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;比例一下 &lt;code&gt;ArrayList&lt;/code&gt; 与 &lt;code&gt;LinkedList&lt;/code&gt; 中的 writeObject&lt;/p&gt;
+
+&lt;p&gt;```java
+    private void writeObject(java.io.ObjectOutputStream s)
+        throws java.io.IOException{
+        // Write out element count, and any hidden stuff
+        int expectedModCount = modCount;
+        s.defaultWriteObject();&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;    // Write out array length
+    s.writeInt(elementData.length);
+
+    // Write out all elements in the proper order.
+    for (int i=0; i&amp;lt;size; i++)
+        s.writeObject(elementData[i]);
+
+    if (modCount != expectedModCount) {
+        throw new ConcurrentModificationException();
+    }
+
+} ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;```java
+    private void writeObject(java.io.ObjectOutputStream s)
+        throws java.io.IOException {
+        // Write out any hidden serialization magic
+        s.defaultWriteObject();&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;    // Write out size
+    s.writeInt(size);
+
+    // Write out all elements in the proper order.
+    for (Node&amp;lt;E&amp;gt; x = first; x != null; x = x.next)
+        s.writeObject(x.item);
+} ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;注意后者没有检查　&lt;code&gt;modCount&lt;/code&gt;，这是为什么呢？之前看 &lt;code&gt;ArrayList&lt;/code&gt;的时候觉得是为线程安全考虑的，可是现在为什么又不检查了呢？虽然两个文件的注释中都说到，如果有多个线程操作此数据结构，应该从外部进行同步。但是一个检查，一个不检查是几个意思呀？&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;维护数据结构一致性&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;java
+    private void linkFirst(E e) {
+        final Node&amp;lt;E&amp;gt; f = first;
+        final Node&amp;lt;E&amp;gt; newNode = new Node&amp;lt;&amp;gt;(null, e, f);
+        first = newNode;
+        if (f == null)
+            last = newNode;
+        else
+            f.prev = newNode;
+        size++;
+        modCount++;
+    }
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;注意代码第 &lt;code&gt;5&lt;/code&gt;行对 &lt;code&gt;f&lt;/code&gt; 的检查，&lt;code&gt;6&lt;/code&gt; 行对 &lt;code&gt;last&lt;/code&gt; 的调整。一定要细心，保证操作后， &lt;code&gt;所有可能&lt;/code&gt; 涉及的数据都得到相应更新。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;隐藏实现&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;java
+    public E getFirst() {
+        final Node&amp;lt;E&amp;gt; f = first;
+        if (f == null)
+            throw new NoSuchElementException();
+        return f.item;
+    }
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;注意返回的是数据，而不是&lt;code&gt;Node&lt;/code&gt;，外部根本不需要知道 &lt;code&gt;Node&lt;/code&gt; 的存在。
+另外，为什么 &lt;code&gt;f == null&lt;/code&gt; 要抛出异常而不是返回 &lt;code&gt;null&lt;/code&gt;？&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;为什么要分成两个函数　&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;```java
+    private E unlinkFirst(Node&lt;e&gt; f) {
+        // assert f == first &amp;amp;&amp;amp; f != null;
+        final E element = f.item;
+        final Node&lt;e&gt; next = f.next;
+        f.item = null;
+        f.next = null; // help GC
+        first = next;
+        if (next == null)
+            last = null;
+        else
+            next.prev = null;
+        size--;
+        modCount++;
+        return element;
+    }&lt;/e&gt;&lt;/e&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;public E removeFirst() {
+    final Node&amp;lt;E&amp;gt; f = first;
+    if (f == null)
+        throw new NoSuchElementException();
+    return unlinkFirst(f);
+} ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;删除操作分成两个函数，这是为什么呢？还有其它的一些操作也是这样。能想到的是其它操作可能也需要用到 &lt;code&gt;unlinkFirst&lt;/code&gt;。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;LinkedList 中以 index 检索&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;```java
+   Node&lt;e&gt; node(int index) {
+        // assert isElementIndex(index);&lt;/e&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;    if (index &amp;lt; (size &amp;gt;&amp;gt; 1)) {
+        Node&amp;lt;E&amp;gt; x = first;
+        for (int i = 0; i &amp;lt; index; i++)
+            x = x.next;
+        return x;
+    } else {
+        Node&amp;lt;E&amp;gt; x = last;
+        for (int i = size - 1; i &amp;gt; index; i--)
+            x = x.prev;
+        return x;
+    }
+} ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;可以看出这里的小技巧，以 &lt;code&gt;index&lt;/code&gt; 在前半段还是后半段，来决定是从前向后搜索，还是从后向前。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;代码重复问题&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;```java
+    public E getFirst() {
+        final Node&lt;e&gt; f = first;
+        if (f == null)
+            throw new NoSuchElementException();
+        return f.item;
+    }&lt;/e&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;public E peek() {
+    final Node&amp;lt;E&amp;gt; f = first;
+    return (f == null) ? null : f.item;
+} ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;好奇这两个函数为什么会同时存在，Google到，原来是为了实现不同的接口，所以需要同时存在这两个函数，类似的情况还存在。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;DescendingIterator&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;java
+   private class DescendingIterator implements Iterator&amp;lt;E&amp;gt; {
+        private final ListItr itr = new ListItr(size());
+        public boolean hasNext() {
+            return itr.hasPrevious();
+        }
+        public E next() {
+            return itr.previous();
+        }
+        public void remove() {
+            itr.remove();
+        }
+    }
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;这个很有意思，直接把 &lt;code&gt;next&lt;/code&gt;, &lt;code&gt;hasNext&lt;/code&gt;　函数设置为 &lt;code&gt;previous&lt;/code&gt; 就行了，很大程度上减少了代码。&lt;/p&gt;
+</description>
+        <pubDate>Wed, 28 May 2014 00:00:00 +0800</pubDate>
+        <link>/blogs/%E6%8A%80%E6%9C%AF/java/%E6%BA%90%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB/2014/05/28/read-openjdk-src-linkedlist.html</link>
+        <guid isPermaLink="true">/blogs/%E6%8A%80%E6%9C%AF/java/%E6%BA%90%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB/2014/05/28/read-openjdk-src-linkedlist.html</guid>
+        
+        
+        <category>技术</category>
+        
+        <category>Java</category>
+        
+        <category>源代码阅读</category>
+        
+      </item>
+    
+      <item>
+        <title>开始OpenJDK源代码阅读</title>
+        <description>&lt;h1 id=&quot;openjdk&quot;&gt;开始OpenJDK源代码阅读&lt;/h1&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;在阅读了一周的 OpenJDK 源代码后，我才写这篇文章。因为除非你已经开始阅读，否则是不知道自己是不是应该读下去的。所以，不要贸然说自己要干嘛，先做一段时间，觉得感觉还好，再决定做下去。&lt;/p&gt;
+
+&lt;p&gt;这一周，主要是看 &lt;code&gt;java.util&lt;/code&gt; 中和容器相关的几个文件，虽然还没看太多，但是已经有一些收获了。看到了以前学过的数据结构在Java的标准库中是如何被实现的。也明白了平时使用的一些类的原理是什么。另外，由于最近在看 《Java编程思想》，也能把书中讲的和标准库的源代码对应起来，感觉还不错。还有一个收获就是明白了，基础越扎实，阅读源代码收获也越大，否则根本就看不出一些设计的初衷是什么。之前看到源代码中一些编写程序的方式，我觉得没有必要那样写，后来看《Java编程思想》，才知道为什么会这样写。也有一些是我觉得可以从源代码中学习的东西，从《Java编程思想》中看到，标准库中的编写方式有些是历史遗留问题，不得不那么写，而不是说我们写的时候，也要那样做。这就是说不要迷信那些你不明白的东西，即使他们看起来很权威。&lt;/p&gt;
+
+&lt;p&gt;另外，要长期坚持一件事情，最好是每天都在一个固定的时间来做，这样养成习惯，心理上就不会有什么负担。之前为了学好英语，我背单词，每天早上第一件事就是背单词，养成习惯，背了471天。后来，我开始阅读英文原著。每天中午饭后就开始阅读，每天读一章，从二月中旬到现在，已经读完了五本书，这样看来，之前定下的今年读十本原著的计划，应该没有问题了。
+鉴于阅读源代码的重要性，我一周前决定要开始阅读源代码，并且养成习惯，每天都要读。于是，晚饭后的时间，我就固定下来阅读源代码，希望可以长期坚持。&lt;/p&gt;
+
+</description>
+        <pubDate>Tue, 27 May 2014 00:00:00 +0800</pubDate>
+        <link>/blogs/%E6%8A%80%E6%9C%AF/java/%E6%BA%90%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB/2014/05/27/read-openjdk-src.html</link>
+        <guid isPermaLink="true">/blogs/%E6%8A%80%E6%9C%AF/java/%E6%BA%90%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB/2014/05/27/read-openjdk-src.html</guid>
+        
+        
+        <category>技术</category>
+        
+        <category>Java</category>
+        
+        <category>源代码阅读</category>
+        
+      </item>
+    
+      <item>
+        <title>OpenJDK 源码阅读之 TreeMap</title>
+        <description>&lt;h1 id=&quot;openjdk--treemap&quot;&gt;OpenJDK 源代码阅读之 TreeMap&lt;/h1&gt;
+
+&lt;hr /&gt;
+
+&lt;h2 id=&quot;section&quot;&gt;概要&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;类继承关系&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;
+java.lang.Object
+    java.util.AbstractMap&amp;lt;K,V&amp;gt;
+        java.util.HashMap&amp;lt;K,V&amp;gt;
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;定义&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;
+public class TreeMap&amp;lt;K,V&amp;gt;
+    extends AbstractMap&amp;lt;K,V&amp;gt;
+    implements NavigableMap&amp;lt;K,V&amp;gt;, Cloneable, java.io.Serializable
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;要点&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;1) 基于 NavigableMap 实现的红黑树
+2) 按 &lt;code&gt;natrual ordering&lt;/code&gt; 或者 &lt;code&gt;Comparator&lt;/code&gt; 定义的次序排序。
+3) 基本操作 &lt;code&gt;containsKey&lt;/code&gt;,&lt;code&gt;get&lt;/code&gt;,&lt;code&gt;put&lt;/code&gt; 有 &lt;code&gt;log(n)&lt;/code&gt; 的时间复杂度。
+4) 非线程安全&lt;/p&gt;
+
+&lt;h2 id=&quot;section-1&quot;&gt;实现&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Comparator&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;java
+private final Comparator&amp;lt;? super K&amp;gt; comparator;
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;这说明提供的 &lt;code&gt;Comparator&lt;/code&gt; 参数类型是 &lt;code&gt;K&lt;/code&gt; 的基类就行。这似乎意味着基类的 &lt;code&gt;Comparator&lt;/code&gt; 与导出类的要一致。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Entry&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;java
+private transient Entry&amp;lt;K,V&amp;gt; root = null;
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;root&lt;/code&gt; 是这棵红黑树的根，那么从 &lt;code&gt;Entry&lt;/code&gt; 的定义可以体现树的结构：&lt;/p&gt;
+
+&lt;p&gt;```java
+static final class Entry&amp;lt;K,V&amp;gt; implements Map.Entry&amp;lt;K,V&amp;gt; {
+    K key;
+    V value;
+    Entry&amp;lt;K,V&amp;gt; left = null;
+    Entry&amp;lt;K,V&amp;gt; right = null;
+    Entry&amp;lt;K,V&amp;gt; parent;
+    boolean color = BLACK;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;... } ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;注意这是个 &lt;code&gt;static final&lt;/code&gt; 类，&lt;code&gt;left&lt;/code&gt;,&lt;code&gt;right&lt;/code&gt;,&lt;code&gt;parent&lt;/code&gt; 分别指向左子树，右子树，父结点, &lt;code&gt;color&lt;/code&gt; 颜色默认为黑。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;containsKey&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public boolean containsKey(Object key) {
+    return getEntry(key) != null;
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+final Entry&amp;lt;K,V&amp;gt; getEntry(Object key) {
+    // Offload comparator-based version for sake of performance
+    if (comparator != null)
+        return getEntryUsingComparator(key);
+    if (key == null)
+        throw new NullPointerException();
+    Comparable&amp;lt;? super K&amp;gt; k = (Comparable&amp;lt;? super K&amp;gt;) key;
+    Entry&amp;lt;K,V&amp;gt; p = root;
+    while (p != null) {
+        int cmp = k.compareTo(p.key);
+        if (cmp &amp;lt; 0)
+            p = p.left;
+        else if (cmp &amp;gt; 0)
+            p = p.right;
+        else
+            return p;
+    }
+    return null;
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;关键操作 &lt;code&gt;containsKey&lt;/code&gt; 是通过调用 &lt;code&gt;getEntry&lt;/code&gt; 完成其功能的。可以看出，这是通过在红黑树上进行查找完成的，每次比较都会下降到树的下一层，由于红黑树的平衡性，时间复杂度为 &lt;code&gt;log(n)&lt;/code&gt;。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;containsValue&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public boolean containsValue(Object value) {
+    for (Entry&amp;lt;K,V&amp;gt; e = getFirstEntry(); e != null; e = successor(e))
+        if (valEquals(value, e.value))
+            return true;
+    return false;
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;可以看出，对 &lt;code&gt;value&lt;/code&gt; 的查找，与对 &lt;code&gt;key&lt;/code&gt; 是不同的。是通过 &lt;code&gt;getFirstEntry&lt;/code&gt; 取得第一个结点，再通过 &lt;code&gt;successor&lt;/code&gt; 遍历实现。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+final Entry&amp;lt;K,V&amp;gt; getFirstEntry() {
+    Entry&amp;lt;K,V&amp;gt; p = root;
+    if (p != null)
+        while (p.left != null)
+            p = p.left;
+    return p;
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;可以看出，这是找到了树中最左边的结点，如果左子树中的值小于右子树，这就意味是第一个比较的结点是最小的结点。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+static &amp;lt;K,V&amp;gt; TreeMap.Entry&amp;lt;K,V&amp;gt; successor(Entry&amp;lt;K,V&amp;gt; t) {
+    if (t == null)
+        return null;
+    else if (t.right != null) {
+        Entry&amp;lt;K,V&amp;gt; p = t.right;
+        while (p.left != null)
+            p = p.left;
+        return p;
+    } else {
+        Entry&amp;lt;K,V&amp;gt; p = t.parent;
+        Entry&amp;lt;K,V&amp;gt; ch = t;
+        while (p != null &amp;amp;&amp;amp; ch == p.right) {
+            ch = p;
+            p = p.parent;
+        }
+        return p;
+    }
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;successor&lt;/code&gt; 其实就是一个结点的 &lt;code&gt;下一个结点&lt;/code&gt;，所谓 &lt;code&gt;下一个&lt;/code&gt;，是按次序排序后的下一个结点。从代码中可以看出，如果右子树不为空，就返回右子树中最小结点。如果右子树为空，就要向上回溯了。在这种情况下，&lt;code&gt;t&lt;/code&gt; 是以其为根的树的最后一个结点。如果它是其父结点的左孩子，那么父结点就是它的下一个结点，否则，&lt;code&gt;t&lt;/code&gt; 就是以其父结点为根的树的最后一个结点，需要再次向上回溯。一直到 &lt;code&gt;ch&lt;/code&gt; 是 &lt;code&gt;p&lt;/code&gt; 的左孩子为止。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;getCeilingEntry&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;java
+/**
+ * Gets the entry corresponding to the specified key; if no such entry
+ * exists, returns the entry for the least key greater than the specified
+ * key; if no such entry exists (i.e., the greatest key in the Tree is less
+ * than the specified key), returns {@code null}.
+ */
+final Entry&amp;lt;K,V&amp;gt; getCeilingEntry(K key) {
+    Entry&amp;lt;K,V&amp;gt; p = root;
+    while (p != null) {
+        int cmp = compare(key, p.key);
+        if (cmp &amp;lt; 0) {
+            if (p.left != null)
+                p = p.left;
+            else
+                return p;
+        } else if (cmp &amp;gt; 0) {
+            if (p.right != null) {
+                p = p.right;
+            } else {
+                Entry&amp;lt;K,V&amp;gt; parent = p.parent;
+                Entry&amp;lt;K,V&amp;gt; ch = p;
+                while (parent != null &amp;amp;&amp;amp; ch == parent.right) {
+                    ch = parent;
+                    parent = parent.parent;
+                }
+                return parent;
+            }
+        } else
+            return p;
+    }
+    return null;
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;这个函数看起来有点奇怪，可以从 &lt;code&gt;return&lt;/code&gt; 语句，猜想一下这是在做什么，我觉得是在找一个 &lt;code&gt;x.key &amp;gt;= key&lt;/code&gt; 的元素，并且 &lt;code&gt;x&lt;/code&gt; 是满足条件的元素中最小的。从 &lt;code&gt;23&lt;/code&gt; 行看，找到的 &lt;code&gt;p&lt;/code&gt;，&lt;code&gt;key&lt;/code&gt; 值与参数 &lt;code&gt;key&lt;/code&gt; 相等，从 &lt;code&gt;8&lt;/code&gt; 行看，又有 &lt;code&gt;key &amp;lt;= p.key&lt;/code&gt;，并且 &lt;code&gt;p.left == null&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;put&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;```java
+/**
+ * Associates the specified value with the specified key in this map.
+ * If the map previously contained a mapping for the key, the old
+ * value is replaced.
+ *
+ * @param key key with which the specified value is to be associated
+ * @param value value to be associated with the specified key
+ *
+ * @return the previous value associated with {@code key}, or
+ *         {@code null} if there was no mapping for {@code key}.
+ *         (A {@code null} return can also indicate that the map
+ *         previously associated {@code null} with {@code key}.)
+ * @throws ClassCastException if the specified key cannot be compared
+ *         with the keys currently in the map
+ * @throws NullPointerException if the specified key is null
+ *         and this map uses natural ordering, or its comparator
+ *         does not permit null keys
+ */
+public V put(K key, V value) {
+    Entry&amp;lt;K,V&amp;gt; t = root;
+    if (t == null) {
+        compare(key, key); // type (and possibly null) check&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;    root = new Entry&amp;lt;&amp;gt;(key, value, null);
+    size = 1;
+    modCount++;
+    return null;
+}
+int cmp;
+Entry&amp;lt;K,V&amp;gt; parent;
+// split comparator and comparable paths
+Comparator&amp;lt;? super K&amp;gt; cpr = comparator;
+if (cpr != null) {
+    do {
+        parent = t;
+        cmp = cpr.compare(key, t.key);
+        if (cmp &amp;lt; 0)
+            t = t.left;
+        else if (cmp &amp;gt; 0)
+            t = t.right;
+        else
+            return t.setValue(value);
+    } while (t != null);
+}
+else {
+    if (key == null)
+        throw new NullPointerException();
+    Comparable&amp;lt;? super K&amp;gt; k = (Comparable&amp;lt;? super K&amp;gt;) key;
+    do {
+        parent = t;
+        cmp = k.compareTo(t.key);
+        if (cmp &amp;lt; 0)
+            t = t.left;
+        else if (cmp &amp;gt; 0)
+            t = t.right;
+        else
+            return t.setValue(value);
+    } while (t != null);
+}
+Entry&amp;lt;K,V&amp;gt; e = new Entry&amp;lt;&amp;gt;(key, value, parent);
+if (cmp &amp;lt; 0)
+    parent.left = e;
+else
+    parent.right = e;
+fixAfterInsertion(e);
+size++;
+modCount++;
+return null; } ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;put&lt;/code&gt; 的过程，其实是将 &lt;code&gt;(key, value)&lt;/code&gt; 加入到红黑树中的过程。如果树是空的，那么创建根结点。否则就要在树中插入结点。这个过程根据 &lt;code&gt;comparator&lt;/code&gt; 是否存在设置成了两种方式，其实没什么区别，就是比较方式的不同，都是在树中查找一个合适的位置，如果 &lt;code&gt;key&lt;/code&gt; 在树中，就 &lt;code&gt;setValue&lt;/code&gt; 设置新值，否则，就在 &lt;code&gt;60-64&lt;/code&gt; 行插入新结点。这里有个重要的地方是 &lt;code&gt;65&lt;/code&gt; 行的 &lt;code&gt;fixAfterInsertion&lt;/code&gt; ，这个很重要，因为这是一棵红黑树，红黑树关键的思想是要保持它的平衡性，插入结点后，平衡性可能被破坏。所以需要 &lt;code&gt;fix&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;```java
+/** From CLR */
+private void fixAfterInsertion(Entry&amp;lt;K,V&amp;gt; x) {
+    x.color = RED;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;while (x != null &amp;amp;&amp;amp; x != root &amp;amp;&amp;amp; x.parent.color == RED) {
+    if (parentOf(x) == leftOf(parentOf(parentOf(x)))) {
+        Entry&amp;lt;K,V&amp;gt; y = rightOf(parentOf(parentOf(x)));
+        if (colorOf(y) == RED) {
+            setColor(parentOf(x), BLACK);
+            setColor(y, BLACK);
+            setColor(parentOf(parentOf(x)), RED);
+            x = parentOf(parentOf(x));
+        } else {
+            if (x == rightOf(parentOf(x))) {
+                x = parentOf(x);
+                rotateLeft(x);
+            }
+            setColor(parentOf(x), BLACK);
+            setColor(parentOf(parentOf(x)), RED);
+            rotateRight(parentOf(parentOf(x)));
+        }
+    } else {
+        Entry&amp;lt;K,V&amp;gt; y = leftOf(parentOf(parentOf(x)));
+        if (colorOf(y) == RED) {
+            setColor(parentOf(x), BLACK);
+            setColor(y, BLACK);
+            setColor(parentOf(parentOf(x)), RED);
+            x = parentOf(parentOf(x));
+        } else {
+            if (x == leftOf(parentOf(x))) {
+                x = parentOf(x);
+                rotateRight(x);
+            }
+            setColor(parentOf(x), BLACK);
+            setColor(parentOf(parentOf(x)), RED);
+            rotateLeft(parentOf(parentOf(x)));
+        }
+    }
+}
+root.color = BLACK; } ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;这是 &lt;code&gt;fixAfterInsertion&lt;/code&gt; 的源代码，我不具体解释了，这是一个根据不同情况进行旋转，调整结点颜色的过程，可以参考《算法导论》中的解释。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;remove&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;```java
+public V remove(Object key) {
+    Entry&amp;lt;K,V&amp;gt; p = getEntry(key);
+    if (p == null)
+        return null;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;V oldValue = p.value;
+deleteEntry(p);
+return oldValue; } ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;删除的过程主要调用 &lt;code&gt;delteEntry&lt;/code&gt; 完成：&lt;/p&gt;
+
+&lt;p&gt;```java
+private void deleteEntry(Entry&amp;lt;K,V&amp;gt; p) {
+    modCount++;
+    size–;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;// If strictly internal, copy successor&#39;s element to p and then make p
+// point to successor.
+if (p.left != null &amp;amp;&amp;amp; p.right != null) {
+    Entry&amp;lt;K,V&amp;gt; s = successor(p);
+    p.key = s.key;
+    p.value = s.value;
+    p = s;
+} // p has 2 children
+
+// Start fixup at replacement node, if it exists.
+Entry&amp;lt;K,V&amp;gt; replacement = (p.left != null ? p.left : p.right);
+
+if (replacement != null) {
+    // Link replacement to parent
+    replacement.parent = p.parent;
+    if (p.parent == null)
+        root = replacement;
+    else if (p == p.parent.left)
+        p.parent.left  = replacement;
+    else
+        p.parent.right = replacement;
+
+    // Null out links so they are OK to use by fixAfterDeletion.
+    p.left = p.right = p.parent = null;
+
+    // Fix replacement
+    if (p.color == BLACK)
+        fixAfterDeletion(replacement);
+} else if (p.parent == null) { // return if we are the only node.
+    root = null;
+} else { //  No children. Use self as phantom replacement and unlink.
+    if (p.color == BLACK)
+        fixAfterDeletion(p);
+
+    if (p.parent != null) {
+        if (p == p.parent.left)
+            p.parent.left = null;
+        else if (p == p.parent.right)
+            p.parent.right = null;
+        p.parent = null;
+    }
+} } ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;这个过程同样是与红黑树的性质相关的。在树中删除一个结点，那他的孩子怎么办啊，红黑树不平衡了怎么办啊，树空了怎么办啊，都需要考虑到。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;clear&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public void clear() {
+    modCount++;
+    size = 0;
+    root = null;
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;居然就是把值都清空了。。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;clone&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;```java
+/**
+ * Returns a shallow copy of this {@code TreeMap} instance. (The keys and
+ * values themselves are not cloned.)
+ *
+ * @return a shallow copy of this map
+ */
+public Object clone() {
+    TreeMap&amp;lt;K,V&amp;gt; clone = null;
+    try {
+        clone = (TreeMap&amp;lt;K,V&amp;gt;) super.clone();
+    } catch (CloneNotSupportedException e) {
+        throw new InternalError();
+    }&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;// Put clone into &quot;virgin&quot; state (except for comparator)
+clone.root = null;
+clone.size = 0;
+clone.modCount = 0;
+clone.entrySet = null;
+clone.navigableKeySet = null;
+clone.descendingMap = null;
+
+// Initialize clone with our mappings
+try {
+    clone.buildFromSorted(size, entrySet().iterator(), null, null);
+} catch (java.io.IOException cannotHappen) {
+} catch (ClassNotFoundException cannotHappen) {
+}
+
+return clone; } ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;clone&lt;/code&gt; 复制了一份新的元素，使用了 &lt;code&gt;super.clone()&lt;/code&gt; 得的一个新对象，而不是使用 &lt;code&gt;new&lt;/code&gt;，这是为啥？然后把各个域值清空，然后使用 &lt;code&gt;buildFromSorted&lt;/code&gt; 插入数据。之所以使用这个函数，是因为红黑树插入操作时间复杂度为 &lt;code&gt;O(lgn)&lt;/code&gt;，n个元素插入就是 &lt;code&gt;O(n*lgn)&lt;/code&gt;，太不划算，更何况我们现在插入的是一个红黑树，所以用一个线性时间复杂度的算法来实现复制数据的操作。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+/**
+ * Linear time tree building algorithm from sorted data.  Can accept keys
+ * and/or values from iterator or stream. This leads to too many
+ * parameters, but seems better than alternatives.  The four formats
+ * that this method accepts are:
+ *
+ *    1) An iterator of Map.Entries.  (it != null, defaultVal == null).
+ *    2) An iterator of keys.         (it != null, defaultVal != null).
+ *    3) A stream of alternating serialized keys and values.
+ *                                   (it == null, defaultVal == null).
+ *    4) A stream of serialized keys. (it == null, defaultVal != null).
+ *
+ * It is assumed that the comparator of the TreeMap is already set prior
+ * to calling this method.
+ *
+ * @param size the number of keys (or key-value pairs) to be read from
+ *        the iterator or stream
+ * @param it If non-null, new entries are created from entries
+ *        or keys read from this iterator.
+ * @param str If non-null, new entries are created from keys and
+ *        possibly values read from this stream in serialized form.
+ *        Exactly one of it and str should be non-null.
+ * @param defaultVal if non-null, this default value is used for
+ *        each value in the map.  If null, each value is read from
+ *        iterator or stream, as described above.
+ * @throws IOException propagated from stream reads. This cannot
+ *         occur if str is null.
+ * @throws ClassNotFoundException propagated from readObject.
+ *         This cannot occur if str is null.
+ */
+private void buildFromSorted(int size, Iterator it,
+                             java.io.ObjectInputStream str,
+                             V defaultVal)
+    throws  java.io.IOException, ClassNotFoundException {
+    this.size = size;
+    root = buildFromSorted(0, 0, size-1, computeRedLevel(size),
+                           it, str, defaultVal);
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;好吧，我们继续。&lt;/p&gt;
+
+&lt;p&gt;```java
+private final Entry&amp;lt;K,V&amp;gt; buildFromSorted(int level, int lo, int hi,
+                                         int redLevel,
+                                         Iterator it,
+                                         java.io.ObjectInputStream str,
+                                         V defaultVal)
+    throws  java.io.IOException, ClassNotFoundException {
+    /*
+     * Strategy: The root is the middlemost element. To get to it, we
+     * have to first recursively construct the entire left subtree,
+     * so as to grab all of its elements. We can then proceed with right
+     * subtree.
+     *
+     * The lo and hi arguments are the minimum and maximum
+     * indices to pull out of the iterator or stream for current subtree.
+     * They are not actually indexed, we just proceed sequentially,
+     * ensuring that items are extracted in corresponding order.
+     */&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;if (hi &amp;lt; lo) return null;
+
+int mid = (lo + hi) &amp;gt;&amp;gt;&amp;gt; 1;
+
+Entry&amp;lt;K,V&amp;gt; left  = null;
+if (lo &amp;lt; mid)
+    left = buildFromSorted(level+1, lo, mid - 1, redLevel,
+                           it, str, defaultVal);
+
+// extract key and/or value from iterator or stream
+K key;
+V value;
+if (it != null) {
+    if (defaultVal==null) {
+        Map.Entry&amp;lt;K,V&amp;gt; entry = (Map.Entry&amp;lt;K,V&amp;gt;)it.next();
+        key = entry.getKey();
+        value = entry.getValue();
+    } else {
+        key = (K)it.next();
+        value = defaultVal;
+    }
+} else { // use stream
+    key = (K) str.readObject();
+    value = (defaultVal != null ? defaultVal : (V) str.readObject());
+}
+
+Entry&amp;lt;K,V&amp;gt; middle =  new Entry&amp;lt;&amp;gt;(key, value, null);
+
+// color nodes in non-full bottommost level red
+if (level == redLevel)
+    middle.color = RED;
+
+if (left != null) {
+    middle.left = left;
+    left.parent = middle;
+}
+
+if (mid &amp;lt; hi) {
+    Entry&amp;lt;K,V&amp;gt; right = buildFromSorted(level+1, mid+1, hi, redLevel,
+                                       it, str, defaultVal);
+    middle.right = right;
+    right.parent = middle;
+}
+
+return middle; } ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;可以看出这是一个递归的算法，找出中间结点，构造左右子树，并将他们连接在一起。时间复杂度分析可以根据递归式：&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;T(n) = 2 * T(n/2) + C&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;如果看不出来的话，可以使用《算法导论》第4章中的主定理，可以得到时间复杂度为 &lt;code&gt;O(n)&lt;/code&gt; 。&lt;/p&gt;
+</description>
+        <pubDate>Mon, 26 May 2014 00:00:00 +0800</pubDate>
+        <link>/blogs/%E6%8A%80%E6%9C%AF/java/%E6%BA%90%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB/2014/05/26/read-openjdk-src-treemap.html</link>
+        <guid isPermaLink="true">/blogs/%E6%8A%80%E6%9C%AF/java/%E6%BA%90%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB/2014/05/26/read-openjdk-src-treemap.html</guid>
+        
+        
+        <category>技术</category>
+        
+        <category>Java</category>
+        
+        <category>源代码阅读</category>
+        
+      </item>
+    
+      <item>
+        <title>OpenJDK 源码阅读之 HashMap</title>
+        <description>&lt;h1 id=&quot;openjdk--hashmap&quot;&gt;OpenJDK 源代码阅读之 HashMap&lt;/h1&gt;
+
+&lt;hr /&gt;
+
+&lt;h2 id=&quot;section&quot;&gt;概要&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;类继承关系&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;
+java.lang.Object
+    java.util.AbstractMap&amp;lt;K,V&amp;gt;
+        java.util.TreeMap&amp;lt;K,V&amp;gt;
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;定义&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code&gt;
+public class TreeMap&amp;lt;K,V&amp;gt;
+extends AbstractMap&amp;lt;K,V&amp;gt;
+implements NavigableMap&amp;lt;K,V&amp;gt;, Cloneable, Serializable
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;要点&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;1) 与 Hashtable 区别在于：非同步，允许 &lt;code&gt;null&lt;/code&gt;
+2) 不保证次序，甚至不保证次序随时间不变
+3) 基本操作 put, get 常量时间
+4) 遍历操作 与 capacity+size 成正比
+5) HashMap 性能与 &lt;code&gt;capacity&lt;/code&gt; 和 &lt;code&gt;load factor&lt;/code&gt; 相关，&lt;code&gt;load factor&lt;/code&gt; 是当前元素个数与 &lt;code&gt;capacity&lt;/code&gt; 的比值，通常设定为 &lt;code&gt;0.75&lt;/code&gt;，如果此值过大，空间利用率高，但是冲突的可能性增加，因而可能导致查找时间增加，如果过小，反之。当元素个数大于 &lt;code&gt;capacity * load_factor&lt;/code&gt; 时，&lt;code&gt;HashMap&lt;/code&gt; 会重新安排 Hash 表。因此高效地使用 &lt;code&gt;HashMap&lt;/code&gt; 需要预估元素个数，设置最佳的 &lt;code&gt;capacity&lt;/code&gt; 和 &lt;code&gt;load factor&lt;/code&gt; ，使得重新安排 Hash 表的次数下降。&lt;/p&gt;
+
+&lt;h2 id=&quot;section-1&quot;&gt;实现&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;capacity&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;```java
+public HashMap(int initialCapacity, float loadFactor) {
+    if (initialCapacity &amp;lt; 0)
+        throw new IllegalArgumentException(“Illegal initial capacity: “ +
+                                           initialCapacity);
+    if (initialCapacity &amp;gt; MAXIMUM_CAPACITY)
+        initialCapacity = MAXIMUM_CAPACITY;
+    if (loadFactor &amp;lt;= 0 || Float.isNaN(loadFactor))
+        throw new IllegalArgumentException(“Illegal load factor: “ +
+                                           loadFactor);&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;// Find a power of 2 &amp;gt;= initialCapacity
+int capacity = 1;
+while (capacity &amp;lt; initialCapacity)
+    capacity &amp;lt;&amp;lt;= 1;
+
+this.loadFactor = loadFactor;
+threshold = (int)Math.min(capacity * loadFactor, MAXIMUM_CAPACITY + 1);
+table = new Entry[capacity];
+useAltHashing = sun.misc.VM.isBooted() &amp;amp;&amp;amp;
+        (capacity &amp;gt;= Holder.ALTERNATIVE_HASHING_THRESHOLD);
+init(); } ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;注意，&lt;code&gt;HashMap&lt;/code&gt; 并不会按照你指定的 &lt;code&gt;initialCapacity&lt;/code&gt; 来确定 &lt;code&gt;capacity&lt;/code&gt; 大小，而是会找到一个比它大的数，并且是 &lt;code&gt;2的n次方&lt;/code&gt;。&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;为什么要是 2 的n次方呢？&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;hash&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;```java
+/**
+ * Retrieve object hash code and applies a supplemental hash function to the
+ * result hash, which defends against poor quality hash functions.  This is
+ * critical because HashMap uses power-of-two length hash tables, that
+ * otherwise encounter collisions for hashCodes that do not differ
+ * in lower bits. Note: Null keys always map to hash 0, thus index 0.
+ */
+final int hash(Object k) {
+    int h = 0;
+    if (useAltHashing) {
+        if (k instanceof String) {
+            return sun.misc.Hashing.stringHash32((String) k);
+        }
+        h = hashSeed;
+    }&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;h ^= k.hashCode();
+
+// This function ensures that hashCodes that differ only by
+// constant multiples at each bit position have a bounded
+// number of collisions (approximately 8 at default load factor).
+h ^= (h &amp;gt;&amp;gt;&amp;gt; 20) ^ (h &amp;gt;&amp;gt;&amp;gt; 12);
+return h ^ (h &amp;gt;&amp;gt;&amp;gt; 7) ^ (h &amp;gt;&amp;gt;&amp;gt; 4); } ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;如果 &lt;code&gt;k&lt;/code&gt; 是 &lt;code&gt;String&lt;/code&gt; 类型，使用了特别的 &lt;code&gt;hash&lt;/code&gt; 函数，否则首先得到 &lt;code&gt;hashCode&lt;/code&gt;，然后又对 &lt;code&gt;h&lt;/code&gt; 作了移位，异或操作，问题：&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;为什么这里要作移位，异或操作呢？&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;code&gt;
+at 22: 
+h = abcdefgh
+h1 = h &amp;gt;&amp;gt;&amp;gt; 20 = 00000abc
+h2 = h &amp;gt;&amp;gt;&amp;gt; 12 = 000abcde
+h3 = h1 ^ h2 = [0][0][0][a][b][a^c][b^d][c^e]
+h4 = h ^ h3 = [a][b][c][a^d][b^e][a^c^f][b^d^g][c^e^h]
+h5 = h4 &amp;gt;&amp;gt;&amp;gt; 4 = [0][a][b][c][a^d][b^e][a^c^f][b^d^g]
+h6 = h4 &amp;gt;&amp;gt;&amp;gt; 7 = ([0][:3])[0][0][a][b][c][a^d][b^e][a^c^f]([a^c^f][0])
+h7 = h4 ^ h6 = 太凶残了。。。
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;put&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;```java
+/**
+ * Associates the specified value with the specified key in this map.
+ * If the map previously contained a mapping for the key, the old
+ * value is replaced.
+ *
+ * @param key key with which the specified value is to be associated
+ * @param value value to be associated with the specified key
+ * @return the previous value associated with &lt;tt&gt;key&lt;/tt&gt;, or
+ *         &lt;tt&gt;null&lt;/tt&gt; if there was no mapping for &lt;tt&gt;key&lt;/tt&gt;.
+ *         (A &lt;tt&gt;null&lt;/tt&gt; return can also indicate that the map
+ *         previously associated &lt;tt&gt;null&lt;/tt&gt; with &lt;tt&gt;key&lt;/tt&gt;.)
+ */
+public V put(K key, V value) {
+    if (key == null)
+        return putForNullKey(value);
+    int hash = hash(key);
+    int i = indexFor(hash, table.length);
+    for (Entry&amp;lt;K,V&amp;gt; e = table[i]; e != null; e = e.next) {
+        Object k;
+        if (e.hash == hash &amp;amp;&amp;amp; ((k = e.key) == key || key.equals(k))) {
+            V oldValue = e.value;
+            e.value = value;
+            e.recordAccess(this);
+            return oldValue;
+        }
+    }&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;modCount++;
+addEntry(hash, key, value, i);
+return null; } ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;从 &lt;code&gt;put&lt;/code&gt; 其实可以看出各个 &lt;code&gt;hash&lt;/code&gt; 表是如何实现的，首先取得 &lt;code&gt;hash&lt;/code&gt; 值，然后由 &lt;code&gt;indexFor&lt;/code&gt; 找到链表头的 &lt;code&gt;index&lt;/code&gt;，然后开始遍历链表，如果链表里的一个元素 &lt;code&gt;hash&lt;/code&gt; 值与当前 &lt;code&gt;key&lt;/code&gt; 的 &lt;code&gt;hash&lt;/code&gt; 值相同，或者元素 &lt;code&gt;key&lt;/code&gt; 的引用与当前 &lt;code&gt;key&lt;/code&gt; 相同，或者 &lt;code&gt;equals&lt;/code&gt; 相同，就说明当前 &lt;code&gt;key&lt;/code&gt; 已经在 &lt;code&gt;hash&lt;/code&gt; 表里了，那么修改它的值，返回旧值。&lt;/p&gt;
+
+&lt;p&gt;如果不在表里，会调用 &lt;code&gt;addEntry&lt;/code&gt;，将这一 &lt;code&gt;(key, value)&lt;/code&gt; 对添加进去。&lt;/p&gt;
+
+&lt;p&gt;```java
+/**
+ * Adds a new entry with the specified key, value and hash code to
+ * the specified bucket.  It is the responsibility of this
+ * method to resize the table if appropriate.
+ *
+ * Subclass overrides this to alter the behavior of put method.
+ */
+void addEntry(int hash, K key, V value, int bucketIndex) {
+    if ((size &amp;gt;= threshold) &amp;amp;&amp;amp; (null != table[bucketIndex])) {
+        resize(2 * table.length);
+        hash = (null != key) ? hash(key) : 0;
+        bucketIndex = indexFor(hash, table.length);
+    }&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;createEntry(hash, key, value, bucketIndex); }
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;/**
+ * Like addEntry except that this version is used when creating entries
+ * as part of Map construction or “pseudo-construction” (cloning,
+ * deserialization).  This version needn’t worry about resizing the table.
+ *
+ * Subclass overrides this to alter the behavior of HashMap(Map),
+ * clone, and readObject.
+ */
+void createEntry(int hash, K key, V value, int bucketIndex) {
+    Entry&amp;lt;K,V&amp;gt; e = table[bucketIndex];
+    table[bucketIndex] = new Entry&amp;lt;&amp;gt;(hash, key, value, e);
+    size++;
+}
+```&lt;/p&gt;
+
+&lt;p&gt;可以看出，新增加元素时，可能会调整 &lt;code&gt;hash&lt;/code&gt; 表的大小，原因之前已经讨论过。直接的添加在 &lt;code&gt;createEntry&lt;/code&gt; 中完成，但是这里并没有体现出如何处理冲突。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+Entry(int h, K k, V v, Entry&amp;lt;K,V&amp;gt; n) {
+    value = v;
+    next = n;
+    key = k;
+    hash = h;
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;注意这里，将 &lt;code&gt;n&lt;/code&gt; 赋值给了 &lt;code&gt;next&lt;/code&gt;，这其实就是将新添加的项指向了当前链表头。这一操作在 &lt;code&gt;Entry&lt;/code&gt; 的构造函数中完成。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;put&lt;/code&gt; 操作的基本思路在到这里已经很清楚了，有了这个思路，不难想象 &lt;code&gt;get&lt;/code&gt; 是如何动作的。&lt;/p&gt;
+
+&lt;p&gt;```java
+public V get(Object key) {
+    if (key == null)
+        return getForNullKey();
+    Entry&amp;lt;K,V&amp;gt; entry = getEntry(key);&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;return null == entry ? null : entry.getValue(); }
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;final Entry&amp;lt;K,V&amp;gt; getEntry(Object key) {
+    int hash = (key == null) ? 0 : hash(key);
+    for (Entry&amp;lt;K,V&amp;gt; e = table[indexFor(hash, table.length)];
+         e != null;
+         e = e.next) {
+        Object k;
+        if (e.hash == hash &amp;amp;&amp;amp;
+            ((k = e.key) == key || (key != null &amp;amp;&amp;amp; key.equals(k))))
+            return e;
+    }
+    return null;
+}
+```&lt;/p&gt;
+
+&lt;p&gt;和 &lt;code&gt;put&lt;/code&gt; 差不多，只是找到了就会返回相应的 &lt;code&gt;value&lt;/code&gt; ，找不到就返回 &lt;code&gt;null&lt;/code&gt;。&lt;/p&gt;
+</description>
+        <pubDate>Sun, 25 May 2014 00:00:00 +0800</pubDate>
+        <link>/blogs/%E6%8A%80%E6%9C%AF/java/%E6%BA%90%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB/2014/05/25/read-openjdk-src-hashmap.html</link>
+        <guid isPermaLink="true">/blogs/%E6%8A%80%E6%9C%AF/java/%E6%BA%90%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB/2014/05/25/read-openjdk-src-hashmap.html</guid>
+        
+        
+        <category>技术</category>
+        
+        <category>Java</category>
+        
+        <category>源代码阅读</category>
+        
+      </item>
+    
+  </channel>
+</rss>

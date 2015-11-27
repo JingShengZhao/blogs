@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+
+    <link rel="stylesheet" type="text/css" 
+      href="/blogs/assets/css/straybirds.css" media="screen" />
+    <link rel="stylesheet" type="text/css" 
+      href="/blogs/assets/css/pygments.css" media="screen" />
+
+    <!-- MathJax Section Start -->
+
+    <script type="text/javascript"
+    src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+    </script>
+    <script>
+        MathJax.Hub.Config({
+              tex2jax: {
+              skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+              }
+        });
+        MathJax.Hub.Queue(function() {
+            var all = MathJax.Hub.getAllJax(), i;
+            for(i=0; i < all.length; i += 1) {
+                all[i].SourceElement().parentNode.className += ' has-jax';
+            }
+        });
+    </script>
+
+    <!-- MathJax Section End -->
+
+    <!-- Google Analytics Start-->
+    <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-48100787-1', 'minixalpha.github.io');
+  ga('send', 'pageview');
+
+</script>
+ 
+
+    <!-- Google Analytics End -->
+
+    <title>观察者模式</title>
+  </head>
+
+  <body>
+    <div class="container">
+      <header>
+        <div class="container">
+          <h1>
+              <a href="/" title="Home Page"> 潇湘夜雨 </a>
+          <span class="github-src">
+            <a href ="https://github.com/jingshengzhao/blogs"
+               target="_blank"
+               title="Fork me on GitHub">
+              <img src="/assets/images/GitHub-Mark-Light-32px.png" alt="">
+            </a>
+          </span>
+          </h1>
+        </div>
+      </header>
+
+      <aside id="left-side">
+        <h2> 分类 </h2>
+  <ul class="category-list">
+      
+            
+                <li>
+                <a href="/blogs/categories/操作系统"> 操作系统 (1) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/工具"> 工具 (4) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/技术"> 技术 (18) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/C语言"> C语言 (4) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/计算机系统"> 计算机系统 (3) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/思想"> 思想 (2) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/源代码阅读"> 源代码阅读 (20) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/读书"> 读书 (1) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/生活"> 生活 (1) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/英语"> 英语 (10) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/科研"> 科研 (5) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/Java"> Java (11) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/虚拟机"> 虚拟机 (1) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/设计模式"> 设计模式 (3) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/hello"> hello (1) </a>
+                </li>
+            
+      
+  </ul>
+
+      </aside>
+
+      <aside id="right-side">
+        <h2> 归档 </h2>
+  <ul class="archive-list">
+    
+    
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2014/08">
+                    2014-08 (1)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2014/07">
+                    2014-07 (5)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2014/05">
+                    2014-05 (12)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2014/04">
+                    2014-04 (3)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2014/03">
+                    2014-03 (11)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2014/02">
+                    2014-02 (6)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2014/01">
+                    2014-01 (3)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2013/11">
+                    2013-11 (10)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2013/10">
+                    2013-10 (3)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2010/09">
+                    2010-09 (1)
+                </a>
+            </li>
+
+        
+        
+    
+  </ul>
+ 
+
+      </aside>
+
+      <article>
+
+<h1 id="section">观察者模式</h1>
+
+<hr />
+
+<ul>
+  <li>定义</li>
+</ul>
+
+<p>观察者模式定义了对象之间的一对多依赖，当一个对象改变时，所以依赖于它的对象都会得到通知。</p>
+
+<ul>
+  <li>示例</li>
+</ul>
+
+<p>```java
+interface Observer {
+	void update(int data);
+}</p>
+
+<p>class NewsPaper {
+	private LinkedList<observer> observers;</observer></p>
+
+<pre><code>public NewsPaper() {
+	observers = new LinkedList&lt;&gt;();
+}
+
+public void subscribe(Observer o) {
+	observers.add(o);
+}
+
+public void unsubscribe(Observer o) {
+	observers.remove(o);
+}
+
+public void changeData(int data) {
+	for (Observer o : observers) {
+		o.update(data);
+	}
+} }
+</code></pre>
+
+<p>class Reader implements Observer {
+	private String name;</p>
+
+<pre><code>public Reader(NewsPaper paper, String name) {
+	this.name = name;
+	paper.subscribe(this);
+}
+
+@Override
+public void update(int data) {
+	System.out.println(name + " update data:" + data);
+} }
+</code></pre>
+
+<p>public class TestObserve {
+	public static void main(String[] args) {
+		NewsPaper newsPaper = new NewsPaper();
+		Reader tom = new Reader(newsPaper, “tom”);
+		Reader jack = new Reader(newsPaper, “jack”);
+		newsPaper.changeData(10);
+		System.out.println(“–”);
+		newsPaper.unsubscribe(tom);
+		newsPaper.changeData(5);
+	}
+}
+```</p>
+
+<p>所有  Reader 都是观察者，当他订阅了 NewsPaper 后。NewsPaper 一有新数据，就会通知所有订阅了它的 Reader。</p>
+
+<ul>
+  <li>为什么</li>
+</ul>
+
+<p>为什么要使用观察者模式？因为在初始化被观察者时，并不知道当数据变化时，需要通知谁。需要通知的对象是动态变化的。</p>
+
+<ul>
+  <li>谁还用了观察者模式</li>
+</ul>
+
+<p>在 GUI 编程时，我们想要在事件被触发时，执行我们指定的动作。例如想在按钮被点击时弹窗口，就可以通过类似 <code>AddListener</code>，将已经实现相应接口的对象添加到按钮的“订阅列表”中，当按钮被点击时，系统会依次调用“订阅列表”中对象的相应方法。弹窗口因此被触发。</p>
+
+
+
+      </article>
+
+      <footer>
+        Copyright (c) jingshengzhao 2015
+      </footer>
+
+    </div>
+  </body>
+</html>

@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+
+    <link rel="stylesheet" type="text/css" 
+      href="/blogs/assets/css/straybirds.css" media="screen" />
+    <link rel="stylesheet" type="text/css" 
+      href="/blogs/assets/css/pygments.css" media="screen" />
+
+    <!-- MathJax Section Start -->
+
+    <script type="text/javascript"
+    src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+    </script>
+    <script>
+        MathJax.Hub.Config({
+              tex2jax: {
+              skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+              }
+        });
+        MathJax.Hub.Queue(function() {
+            var all = MathJax.Hub.getAllJax(), i;
+            for(i=0; i < all.length; i += 1) {
+                all[i].SourceElement().parentNode.className += ' has-jax';
+            }
+        });
+    </script>
+
+    <!-- MathJax Section End -->
+
+    <!-- Google Analytics Start-->
+    <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-48100787-1', 'minixalpha.github.io');
+  ga('send', 'pageview');
+
+</script>
+ 
+
+    <!-- Google Analytics End -->
+
+    <title>web.py 项目架构分析之 todolist</title>
+  </head>
+
+  <body>
+    <div class="container">
+      <header>
+        <div class="container">
+          <h1>
+              <a href="/" title="Home Page"> 潇湘夜雨 </a>
+          <span class="github-src">
+            <a href ="https://github.com/jingshengzhao/blogs"
+               target="_blank"
+               title="Fork me on GitHub">
+              <img src="/assets/images/GitHub-Mark-Light-32px.png" alt="">
+            </a>
+          </span>
+          </h1>
+        </div>
+      </header>
+
+      <aside id="left-side">
+        <h2> 分类 </h2>
+  <ul class="category-list">
+      
+            
+                <li>
+                <a href="/blogs/categories/操作系统"> 操作系统 (1) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/工具"> 工具 (4) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/技术"> 技术 (18) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/C语言"> C语言 (4) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/计算机系统"> 计算机系统 (3) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/思想"> 思想 (2) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/源代码阅读"> 源代码阅读 (20) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/读书"> 读书 (1) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/生活"> 生活 (1) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/英语"> 英语 (10) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/科研"> 科研 (5) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/Java"> Java (11) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/虚拟机"> 虚拟机 (1) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/设计模式"> 设计模式 (3) </a>
+                </li>
+            
+      
+            
+                <li>
+                <a href="/blogs/categories/hello"> hello (1) </a>
+                </li>
+            
+      
+  </ul>
+
+      </aside>
+
+      <aside id="right-side">
+        <h2> 归档 </h2>
+  <ul class="archive-list">
+    
+    
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2014/08">
+                    2014-08 (1)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2014/07">
+                    2014-07 (5)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2014/05">
+                    2014-05 (12)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2014/04">
+                    2014-04 (3)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2014/03">
+                    2014-03 (11)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2014/02">
+                    2014-02 (6)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2014/01">
+                    2014-01 (3)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2013/11">
+                    2013-11 (10)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2013/10">
+                    2013-10 (3)
+                </a>
+            </li>
+
+        
+        
+    
+        
+        
+        
+        
+            
+            <li>
+                <a href="/blogs/2010/09">
+                    2010-09 (1)
+                </a>
+            </li>
+
+        
+        
+    
+  </ul>
+ 
+
+      </aside>
+
+      <article>
+
+<h1 id="webpy--todolist">web.py 项目之 todolist</h1>
+
+<h2 id="section">目录树</h2>
+
+<p>```
+.
+└── src
+    ├── model.py
+    ├── schema.sql
+    ├── templates
+    │   ├── base.html
+    │   └── index.html
+    ├── todo.py</p>
+
+<p>2 directories, 8 files
+```</p>
+
+<h2 id="section-1">项目说明</h2>
+
+<p>项目来自 <a href="http://webpy.org/src/todo-list/0.3">webpy.org</a>,
+主要实现一个基于web的 todolist，就是可以添加删除一些任务。
+非常简单</p>
+
+<h2 id="section-2">结构分析</h2>
+
+<h3 id="section-3">控制模块</h3>
+
+<p>控制模块只有todo.py</p>
+
+<p>```python</p>
+
+<p>””” Basic todo list using webpy 0.3 “””
+import web
+import model</p>
+
+<h3 id="url-mappings">Url mappings</h3>
+
+<p>urls = (
+    ‘/’, ‘Index’,
+    ‘/del/(\d+)’, ‘Delete’
+)</p>
+
+<h3 id="templates">Templates</h3>
+<p>render = web.template.render(‘templates’, base=’base’)</p>
+
+<p>class Index:</p>
+
+<pre><code>form = web.form.Form(
+    web.form.Textbox('title', web.form.notnull, 
+        description="I need to:"),
+    web.form.Button('Add todo'),
+)
+
+def GET(self):
+    """ Show page """
+    todos = model.get_todos()
+    form = self.form()
+    return render.index(todos, form)
+
+def POST(self):
+    """ Add new entry """
+    form = self.form()
+    if not form.validates():
+        todos = model.get_todos()
+        return render.index(todos, form)
+    model.new_todo(form.d.title)
+    raise web.seeother('/')
+</code></pre>
+
+<p>class Delete:</p>
+
+<pre><code>def POST(self, id):
+    """ Delete based on ID """
+    id = int(id)
+    model.del_todo(id)
+    raise web.seeother('/')
+</code></pre>
+
+<p>app = web.application(urls, globals())</p>
+
+<p>if <strong>name</strong> == ‘<strong>main</strong>’:
+    app.run()
+```</p>
+
+<p>这一模块是对页面逻辑的处理，包括：</p>
+
+<ul>
+  <li>处理页面请求 Index.GET</li>
+  <li>处理添加请求 Index.POST</li>
+  <li>
+    <p>处理删除请求 Delete.POST</p>
+
+    <p>这是MVC中的C吗</p>
+  </li>
+</ul>
+
+<h3 id="section-4">显示模块</h3>
+
+<p>显示模块是 templates 下的两个文件，base.html, index.html
+框架使用模板引擎已经将显示与实现分开了，这个项目没有像
+skeleton 项目那样有专门的一个 view.py 提供具体的与显示相关
+的逻辑。</p>
+
+<p>templates/base.html</p>
+
+<p>```html</p>
+
+<p>$def with (page)</p>
+
+<html>
+<head>
+    <title>Todo list</title>
+</head>
+<body>
+
+$:page
+
+</body>
+</html>
+<p>```</p>
+
+<p>templates/index.html</p>
+
+<p>```html</p>
+
+<p>$def with (todos, form)</p>
+
+<table>
+    <tr>
+        <th>What to do ?</th>
+        <th></th>
+    </tr>
+$for todo in todos:
+    <tr>
+        <td>$todo.title</td>
+        <td>
+            <form action="/del/$todo.id" method="post">
+                <input type="submit" value="Delete" />
+            </form>
+        </td>
+    </tr>    
+</table>
+
+<form action="" method="post">
+$:form.render()
+</form>
+<p>```</p>
+
+<p>注意这里表单的实现，是在控制模块中生成了 form, 传给模板引擎。
+我觉得还是应该分开好。毕竟 form 只与显示相关，和控制无关。</p>
+
+<h3 id="section-5">数据模块</h3>
+
+<p>数据模板提供了 model.py 处理数据库操作，数据库操作并不直接在
+控制模块中体现，而是由 model.py 提供接口。另外还包括 schema.sql
+提供数据库表格式。</p>
+
+<p>schema.sql</p>
+
+<p><code>
+CREATE TABLE todo (
+    id INT AUTO_INCREMENT,
+    title TEXT,
+    primary key (id)
+);
+</code></p>
+
+<p>model.py</p>
+
+<p>```python
+import web</p>
+
+<p>db = web.database(dbn=’mysql’, db=’todo’, user=’root’, pw=”XXX”)</p>
+
+<p>def get_todos():
+    return db.select(‘todo’, order=’id’)</p>
+
+<p>def new_todo(text):
+    db.insert(‘todo’, title=text)</p>
+
+<p>def del_todo(id):
+    db.delete(‘todo’, where=”id=$id”, vars=locals())
+```</p>
+
+<p>总的来说，项目还是太小了，无法体会到当初作 BlogSystem 时遇到的困难应该怎么
+解决，不过MVC的结构已经非常明显了，希望以后可以阅读一些大型网站的结构。</p>
+
+
+      </article>
+
+      <footer>
+        Copyright (c) jingshengzhao 2015
+      </footer>
+
+    </div>
+  </body>
+</html>
