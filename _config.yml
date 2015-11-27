@@ -1,5 +1,5 @@
 source:       .
-destination:  ./_site
+destination:  ./_sites
 plugins:      ./_plugins
 layouts:      ./_layouts
 paginate:     8
